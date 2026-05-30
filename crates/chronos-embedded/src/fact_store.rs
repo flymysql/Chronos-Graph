@@ -9,7 +9,10 @@
 //! - [`FactStore::as_of`] — point-in-time query over both timelines.
 
 use crate::fact_codec::{decode_fact, encode_fact, fact_key, FACT_PREFIX};
-use chronos_common::{AsOf, EdgeId, NodeId, PredicateId, ProvenanceRef, Result, Timestamp};
+use chronos_common::{
+    AsOf, BitemporalSpan, ChunkId, DocId, EdgeId, NodeId, PredicateId, ProvenanceRef, Result,
+    Timestamp,
+};
 use chronos_storage::{
     InMemoryIntervalIndex, IntervalIndex, KeyRange, MemoryEngine, StorageEngine,
 };
@@ -25,7 +28,11 @@ pub struct FactStore {
     provenance: RwLock<HashMap<EdgeId, ProvenanceRef>>,
     nodes: RwLock<HashMap<NodeId, String>>,
     predicates: RwLock<HashMap<PredicateId, String>>,
+    node_ids: RwLock<HashMap<String, NodeId>>,
+    predicate_ids: RwLock<HashMap<String, PredicateId>>,
     next_edge: AtomicU64,
+    next_node: AtomicU64,
+    next_predicate: AtomicU64,
 }
 
 impl Default for FactStore {
@@ -42,8 +49,48 @@ impl FactStore {
             provenance: RwLock::new(HashMap::new()),
             nodes: RwLock::new(HashMap::new()),
             predicates: RwLock::new(HashMap::new()),
+            node_ids: RwLock::new(HashMap::new()),
+            predicate_ids: RwLock::new(HashMap::new()),
             next_edge: AtomicU64::new(1),
+            next_node: AtomicU64::new(1),
+            next_predicate: AtomicU64::new(1),
         }
+    }
+
+    /// Resolve a node by name, creating and registering it on first use.
+    pub fn intern_node(&self, name: &str) -> NodeId {
+        if let Some(id) = self.node_ids.read().expect("node_ids poisoned").get(name) {
+            return *id;
+        }
+        let mut ids = self.node_ids.write().expect("node_ids poisoned");
+        // Re-check after taking the write lock (another thread may have won).
+        if let Some(id) = ids.get(name) {
+            return *id;
+        }
+        let id = NodeId::new(self.next_node.fetch_add(1, Ordering::SeqCst));
+        ids.insert(name.to_string(), id);
+        self.put_node(id, name);
+        id
+    }
+
+    /// Resolve a predicate by name, creating and registering it on first use.
+    pub fn intern_predicate(&self, name: &str) -> PredicateId {
+        if let Some(id) = self
+            .predicate_ids
+            .read()
+            .expect("predicate_ids poisoned")
+            .get(name)
+        {
+            return *id;
+        }
+        let mut ids = self.predicate_ids.write().expect("predicate_ids poisoned");
+        if let Some(id) = ids.get(name) {
+            return *id;
+        }
+        let id = PredicateId::new(self.next_predicate.fetch_add(1, Ordering::SeqCst));
+        ids.insert(name.to_string(), id);
+        self.put_predicate(id, name);
+        id
     }
 
     /// Allocate a fresh edge id.
@@ -197,6 +244,31 @@ impl FactStore {
             written: new_fact,
             invalidated,
         })
+    }
+
+    /// High-level ingest: intern names, build a fact valid from `valid_from`,
+    /// and upsert it with the given conflict policy. Returns the new edge id.
+    #[allow(clippy::too_many_arguments)]
+    pub fn ingest(
+        &self,
+        subject: &str,
+        predicate: &str,
+        object: &str,
+        valid_from: Timestamp,
+        doc: DocId,
+        chunk: ChunkId,
+        policy: ConflictPolicy,
+    ) -> Result<EdgeId> {
+        let fact = Fact {
+            id: self.next_edge_id(),
+            subject: self.intern_node(subject),
+            predicate: self.intern_predicate(predicate),
+            object: self.intern_node(object),
+            span: BitemporalSpan::open(valid_from, Timestamp::MIN),
+            provenance: ProvenanceRef::new(doc, chunk),
+            embedding: None,
+        };
+        Ok(self.upsert_fact(fact, policy)?.written.id)
     }
 
     /// Mark a fact as a recording error as of `at` (transaction-time

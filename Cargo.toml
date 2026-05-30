@@ -35,6 +35,7 @@ chronos-query = { path = "crates/chronos-query" }
 chronos-community = { path = "crates/chronos-community" }
 chronos-resolution = { path = "crates/chronos-resolution" }
 chronos-server = { path = "crates/chronos-server" }
+chronos-embedded = { path = "crates/chronos-embedded" }
 
 # NOTE: Heavy backend dependencies are intentionally NOT enabled in this
 # skeleton so the first build stays green and fast. They are planned per the

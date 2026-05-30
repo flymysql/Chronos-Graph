@@ -6,9 +6,22 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Service layer: gRPC/HTTP endpoints, sessions, multi-tenancy and ACL push-down. Async runtime (tokio/tonic/axum) planned."
+description = "Service layer: HTTP/REST endpoints over the engine, sessions, multi-tenancy and ACL. (gRPC planned once protoc is wired into CI.)"
+
+[[bin]]
+name = "chronos-server"
+path = "src/main.rs"
 
 [dependencies]
 chronos-common.workspace = true
 chronos-query.workspace = true
 chronos-temporal.workspace = true
+chronos-embedded.workspace = true
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
