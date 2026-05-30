@@ -34,12 +34,27 @@ pushes these capabilities **down into the database engine itself**:
 >   `GreedyBudgeter` and `DefaultContextSerializer` operators.
 > - `MemoryRetriever` (M2): wires `FactStore` into the query layer and provides
 >   an end-to-end **"question -> cited, point-in-time context"** pipeline.
+> - `chronos-server` (M3): a runnable **HTTP/REST** service (axum/tokio) with
+>   `POST /v1/memory` and `POST /v1/search`, integration-tested in-process.
+> - `chronos-mcp` (M3): a built-in **MCP server** (JSON-RPC over stdio) exposing
+>   `add_memory` / `search_memory` tools to agents.
+> - `sdks/`: dependency-free **Python** and **TypeScript** REST clients.
 >
 > ```cypher
 > MATCH (n) WHERE SIMILAR(n, "Alice lives")
 > AS OF VALID TIME 1500
 > RETURN CONTEXT(cite = true)
 > ```
+>
+> Run it:
+>
+> ```bash
+> cargo run -p chronos-server          # REST on 127.0.0.1:8080
+> cargo run -p chronos-mcp             # MCP server on stdio
+> ```
+>
+> (gRPC is planned once `protoc` is wired into CI; the REST surface is the
+> current external contract.)
 >
 > See [docs/implementation.md](docs/implementation.md) for the engineering plan
 > and [docs/design.md](docs/design.md) for the architecture rationale.
