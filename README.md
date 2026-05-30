@@ -18,9 +18,10 @@ pushes these capabilities **down into the database engine itself**:
   context, not rows.
 - **Agent-native** — built-in MCP server for write-memory / search / multi-hop.
 
-> Status: **M1–M4 functional (v0.0.1)**. Beyond the workspace skeleton, the
-> bitemporal core, query layer, service layer and incremental communities are
-> functional and tested:
+> Status: **M1–M6 functional (v0.0.1)**. Beyond the workspace skeleton, the
+> bitemporal core, query layer, service layer, incremental communities, entity
+> resolution, multi-tenancy, real BM25/vector indexes and a durable RocksDB
+> backend are functional and tested (60+ tests across the workspace):
 >
 > - `chronos-storage`: a complete in-memory **MVCC** `StorageEngine` (snapshot
 >   isolation, read-your-writes, atomic commit) plus a durable **RocksDB**
@@ -120,6 +121,31 @@ cargo fmt --check
 cargo test -p chronos-embedded --features rocks
 CHRONOS_DATA_DIR=./data cargo run -p chronos-server --features rocks
 ```
+
+## Implemented vs planned
+
+| Capability | Status |
+| --- | --- |
+| Bitemporal storage (valid + transaction time) | ✅ implemented |
+| MVCC in-memory engine | ✅ implemented |
+| Durable RocksDB engine + full state recovery | ✅ implemented (`rocks`) |
+| Atomic `UPSERT_FACT` + non-lossy invalidation | ✅ implemented |
+| Point-in-time `AS OF` over both timelines | ✅ implemented |
+| Extended-Cypher lexer / parser / compile | ✅ implemented |
+| Token-budget selection + graph-to-text + citations | ✅ implemented |
+| BM25 full-text index (wired into `SIMILAR`) | ✅ implemented |
+| Brute-force cosine vector index | ✅ implemented |
+| Incremental connected-component communities | ✅ implemented |
+| Entity resolution (lexical detect + transactional merge) | ✅ implemented |
+| Multi-tenancy / tenant filter push-down | ✅ implemented |
+| HTTP/REST service + built-in MCP server + SDKs | ✅ implemented |
+| HNSW approximate vector index | ⏳ planned |
+| `tantivy`-backed full-text | ⏳ planned |
+| Hierarchical (Leiden) community roll-ups + LLM summaries | ⏳ planned |
+| Background re-embedding pipeline | ⏳ planned |
+| Full historical MVCC on the RocksDB backend | ⏳ planned |
+| gRPC service (once `protoc` is in CI) | ⏳ planned |
+| Per-node ACL push-down (below the tenant boundary) | ⏳ planned |
 
 ## License
 
