@@ -14,6 +14,7 @@ use chronos_common::{
     Timestamp,
 };
 use chronos_community::InMemoryCommunityIndex;
+use chronos_resolution::LexicalBlocker;
 use chronos_storage::{
     InMemoryIntervalIndex, IntervalIndex, KeyRange, MemoryEngine, StorageEngine,
 };
@@ -325,6 +326,125 @@ impl FactStore {
             embedding: None,
         };
         Ok(self.upsert_fact(fact, policy)?.written.id)
+    }
+
+    /// Candidate entity-merge pairs `(keep, drop, score)` discovered by lexical
+    /// blocking over registered node names, with `score >= threshold`. The
+    /// lower `NodeId` is the `keep` side (deterministic merge direction).
+    pub fn resolution_candidates(&self, threshold: f32) -> Vec<(NodeId, NodeId, f32)> {
+        let names: Vec<(NodeId, String)> = self
+            .nodes
+            .read()
+            .expect("nodes poisoned")
+            .iter()
+            .map(|(id, name)| (*id, name.clone()))
+            .collect();
+        LexicalBlocker::new(names).candidate_pairs(threshold)
+    }
+
+    /// Resolve all candidate pairs at or above `threshold`, merging each `drop`
+    /// node into its `keep` node. Returns the number of nodes merged away.
+    ///
+    /// Uses union-find semantics: if `a~b` and `b~c`, all three collapse into a
+    /// single surviving node (the smallest id of the cluster).
+    pub fn auto_resolve(&self, threshold: f32) -> Result<usize> {
+        let pairs = self.resolution_candidates(threshold);
+        let mut merged = 0usize;
+        // Follow forwarding so transitively-merged ids resolve to the survivor.
+        let mut survivor: HashMap<NodeId, NodeId> = HashMap::new();
+        let resolve = |survivor: &HashMap<NodeId, NodeId>, mut n: NodeId| {
+            while let Some(&s) = survivor.get(&n) {
+                n = s;
+            }
+            n
+        };
+        for (keep, drop, _) in pairs {
+            let keep = resolve(&survivor, keep);
+            let drop = resolve(&survivor, drop);
+            if keep == drop {
+                continue;
+            }
+            let (keep, drop) = if keep <= drop {
+                (keep, drop)
+            } else {
+                (drop, keep)
+            };
+            self.merge_nodes(keep, drop)?;
+            survivor.insert(drop, keep);
+            merged += 1;
+        }
+        Ok(merged)
+    }
+
+    /// Merge entity `from` into `into`: every fact referencing `from` (as
+    /// subject or object) is rewritten to reference `into`, preserving each
+    /// fact's bitemporal span and provenance (both keyed by edge id, so they
+    /// carry over unchanged). The `from` name is repointed so future interning
+    /// resolves to `into`, and the community index is updated.
+    ///
+    /// Note: merging may leave multiple open facts for the same
+    /// subject/predicate (e.g. two sources each asserted a home city under
+    /// different surface names). We dedupe exact duplicates but do not re-run
+    /// contradiction resolution here; reconciling genuinely conflicting merged
+    /// facts is left to a subsequent `upsert_fact`.
+    pub fn merge_nodes(&self, into: NodeId, from: NodeId) -> Result<usize> {
+        if into == from {
+            return Ok(0);
+        }
+        let mut txn = self.engine.begin()?;
+        let facts = self.scan_facts(&txn)?;
+        let mut rewritten = 0usize;
+        let mut seen: std::collections::HashSet<(NodeId, PredicateId, NodeId, i64)> =
+            std::collections::HashSet::new();
+        for mut fact in facts {
+            let touches = fact.subject == from || fact.object == from;
+            if fact.subject == from {
+                fact.subject = into;
+            }
+            if fact.object == from {
+                fact.object = into;
+            }
+            if !touches {
+                // Still track existing edges for dedup of rewritten ones.
+                seen.insert((
+                    fact.subject,
+                    fact.predicate,
+                    fact.object,
+                    fact.span.valid_from.millis(),
+                ));
+                continue;
+            }
+            let dedup_key = (
+                fact.subject,
+                fact.predicate,
+                fact.object,
+                fact.span.valid_from.millis(),
+            );
+            if !seen.insert(dedup_key) {
+                // Exact duplicate created by the merge: drop this version.
+                self.engine.delete(&mut txn, fact_key(fact.id))?;
+                self.index.write().expect("index poisoned").remove(fact.id);
+                continue;
+            }
+            self.engine
+                .put(&mut txn, fact_key(fact.id), encode_fact(&fact))?;
+            rewritten += 1;
+        }
+        self.engine.commit(txn)?;
+
+        // Repoint the dropped name and remove its node entry.
+        let from_name = self.nodes.write().expect("nodes poisoned").remove(&from);
+        if let Some(name) = from_name {
+            self.node_ids
+                .write()
+                .expect("node_ids poisoned")
+                .insert(name, into);
+        }
+        self.communities
+            .write()
+            .expect("communities poisoned")
+            .add_edge(into, from);
+        Ok(rewritten)
     }
 
     /// Mark a fact as a recording error as of `at` (transaction-time

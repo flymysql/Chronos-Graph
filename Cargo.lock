@@ -194,6 +194,7 @@ dependencies = [
  "chronos-graph-model",
  "chronos-provenance",
  "chronos-query",
+ "chronos-resolution",
  "chronos-storage",
  "chronos-temporal",
  "proptest",

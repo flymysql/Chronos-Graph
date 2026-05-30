@@ -36,16 +36,22 @@ pushes these capabilities **down into the database engine itself**:
 > - `MemoryRetriever` (M2): wires `FactStore` into the query layer and provides
 >   an end-to-end **"question -> cited, point-in-time context"** pipeline.
 > - `chronos-server` (M3): a runnable **HTTP/REST** service (axum/tokio) with
->   `POST /v1/memory`, `POST /v1/search` and `GET /v1/communities`,
->   integration-tested in-process.
+>   `POST /v1/memory`, `POST /v1/search`, `GET /v1/communities` and
+>   `POST /v1/resolve`, integration-tested in-process.
 > - `chronos-mcp` (M3): a built-in **MCP server** (JSON-RPC over stdio) exposing
->   `add_memory` / `search_memory` / `list_communities` tools to agents.
+>   `add_memory` / `search_memory` / `list_communities` / `resolve_entities`
+>   tools to agents.
 > - `chronos-community` (M4): **incrementally maintained communities** — a
 >   union-find unions each fact's endpoints in near-constant time, so a new fact
 >   only touches the two affected components instead of forcing a full rebuild
 >   (the cost advantage over batch GraphRAG). Level-0 (connected-component)
 >   communities surface templated, current-fact summaries for global queries;
 >   hierarchical Leiden roll-ups are future work.
+> - `chronos-resolution` (M4): **entity resolution** — dependency-free lexical
+>   blocking detects surface variants ("OpenAI" / "OpenAI Inc."), and the engine
+>   merges them transactionally: facts are rewritten onto the canonical node
+>   (preserving each fact's bitemporal span and provenance) and exact duplicates
+>   are deduped. Exposed via `POST /v1/resolve` and the `resolve_entities` tool.
 > - `sdks/`: dependency-free **Python** and **TypeScript** REST clients.
 >
 > ```cypher
@@ -79,7 +85,7 @@ crates/
   chronos-provenance   triple<->chunk<->document links + source invalidation
   chronos-query        query language + planner + optimizer + executors
   chronos-community    incremental connected-component communities (Leiden roll-ups: planned)
-  chronos-resolution   [Phase 2] embedding-based entity resolution
+  chronos-resolution   entity resolution: lexical candidate detection + engine merge
   chronos-server       gRPC/HTTP service, sessions, ACL, multi-tenancy
   chronos-mcp          built-in MCP server (agent tools)
   chronos-embedded     embedded library form factor (single-node / edge)

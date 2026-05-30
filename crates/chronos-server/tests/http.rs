@@ -164,6 +164,43 @@ async fn communities_group_connected_entities() {
 }
 
 #[tokio::test]
+async fn resolve_merges_surface_variants() {
+    let app = app();
+    for (s, doc) in [("OpenAI Inc.", 10), ("OpenAI", 20)] {
+        post_json(
+            app.clone(),
+            "/v1/memory",
+            serde_json::json!({
+                "subject": s, "predicate": "based_in", "object": "SF",
+                "valid_from": 1000, "doc": doc, "chunk": 1
+            }),
+        )
+        .await;
+    }
+
+    // Dry run reports the candidate without merging.
+    let (s_dry, dry) = post_json(
+        app.clone(),
+        "/v1/resolve",
+        serde_json::json!({ "threshold": 0.9, "dry_run": true }),
+    )
+    .await;
+    assert_eq!(s_dry, StatusCode::OK);
+    assert_eq!(dry["merged"].as_u64(), Some(0));
+    assert_eq!(dry["candidates"].as_array().unwrap().len(), 1);
+
+    // Real run merges them.
+    let (s_run, run) = post_json(
+        app.clone(),
+        "/v1/resolve",
+        serde_json::json!({ "threshold": 0.9 }),
+    )
+    .await;
+    assert_eq!(s_run, StatusCode::OK);
+    assert_eq!(run["merged"].as_u64(), Some(1));
+}
+
+#[tokio::test]
 async fn bad_query_is_400() {
     let (status, _) = post_json(
         app(),

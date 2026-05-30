@@ -8,6 +8,7 @@
 //! - `POST /v1/memory`   -> ingest a fact (UPSERT_FACT)
 //! - `POST /v1/search`   -> question -> cited, point-in-time context
 //! - `GET  /v1/communities` -> level-0 community summaries (global view)
+//! - `POST /v1/resolve`   -> entity resolution (candidate detection / merge)
 
 pub mod acl;
 pub mod session;
@@ -44,6 +45,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/memory", post(add_memory))
         .route("/v1/search", post(search))
         .route("/v1/communities", get(communities))
+        .route("/v1/resolve", post(resolve))
         .with_state(state)
 }
 
@@ -161,6 +163,54 @@ async fn communities(State(state): State<AppState>) -> Result<Json<CommunitiesRe
             })
             .collect(),
     }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ResolveReq {
+    /// Name-similarity threshold in [0,1]; pairs at or above merge.
+    threshold: f32,
+    /// If true, only report candidate pairs without merging.
+    #[serde(default)]
+    dry_run: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct CandidateJson {
+    keep: u64,
+    drop: u64,
+    keep_name: String,
+    drop_name: String,
+    score: f32,
+}
+
+#[derive(Debug, Serialize)]
+struct ResolveResp {
+    merged: usize,
+    candidates: Vec<CandidateJson>,
+}
+
+async fn resolve(
+    State(state): State<AppState>,
+    Json(req): Json<ResolveReq>,
+) -> Result<Json<ResolveResp>, ApiError> {
+    let candidates = state
+        .store
+        .resolution_candidates(req.threshold)
+        .into_iter()
+        .map(|(keep, drop, score)| CandidateJson {
+            keep: keep.raw(),
+            drop: drop.raw(),
+            keep_name: state.store.node_name(keep),
+            drop_name: state.store.node_name(drop),
+            score,
+        })
+        .collect();
+    let merged = if req.dry_run {
+        0
+    } else {
+        state.store.auto_resolve(req.threshold)?
+    };
+    Ok(Json(ResolveResp { merged, candidates }))
 }
 
 /// Maps engine errors to HTTP responses.

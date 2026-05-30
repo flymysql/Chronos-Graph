@@ -35,6 +35,12 @@ impl InMemoryIntervalIndex {
             }
         }
     }
+
+    /// Drop all index entries for `id` (used when a fact record is physically
+    /// removed, e.g. an exact duplicate produced by an entity merge).
+    pub fn remove(&mut self, id: EdgeId) {
+        self.entries.retain(|(eid, _)| *eid != id);
+    }
 }
 
 impl IntervalIndex for InMemoryIntervalIndex {

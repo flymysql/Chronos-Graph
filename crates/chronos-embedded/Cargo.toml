@@ -16,6 +16,7 @@ chronos-query.workspace = true
 chronos-graph-model.workspace = true
 chronos-provenance.workspace = true
 chronos-community.workspace = true
+chronos-resolution.workspace = true
 
 [dev-dependencies]
 proptest = "1"

@@ -59,6 +59,14 @@ fn tool_descriptors() -> Value {
             "name": "list_communities",
             "description": "List level-0 entity communities with templated summaries (global view).",
             "inputSchema": { "type": "object", "properties": {} }
+        },
+        {
+            "name": "resolve_entities",
+            "description": "Merge surface-variant entities above a name-similarity threshold (0..1).",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "threshold": {"type": "number"} }
+            }
         }
     ])
 }
@@ -98,6 +106,10 @@ fn handle_tool_call(state: &McpState, id: Value, req: &Value) -> Value {
             Err(e) => err(id, -32602, &e),
         },
         "list_communities" => match tool_list_communities(state) {
+            Ok(text) => ok(id, tool_text(&text)),
+            Err(e) => err(id, -32602, &e),
+        },
+        "resolve_entities" => match tool_resolve_entities(state, &args) {
             Ok(text) => ok(id, tool_text(&text)),
             Err(e) => err(id, -32602, &e),
         },
@@ -152,6 +164,18 @@ fn tool_list_communities(state: &McpState) -> Result<String, String> {
         .map(|c| c.summary)
         .collect::<Vec<_>>()
         .join("\n"))
+}
+
+fn tool_resolve_entities(state: &McpState, args: &Value) -> Result<String, String> {
+    let threshold = args
+        .get("threshold")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.9) as f32;
+    let merged = state
+        .store
+        .auto_resolve(threshold)
+        .map_err(|e| e.to_string())?;
+    Ok(format!("merged {merged} entities"))
 }
 
 /// MCP tool results carry a `content` array of typed parts.
@@ -211,6 +235,7 @@ mod tests {
         assert!(names.contains(&"add_memory"));
         assert!(names.contains(&"search_memory"));
         assert!(names.contains(&"list_communities"));
+        assert!(names.contains(&"resolve_entities"));
     }
 
     #[test]
@@ -258,6 +283,31 @@ mod tests {
             text.contains("Alice") && text.contains("Beijing"),
             "got {text}"
         );
+    }
+
+    #[test]
+    fn resolve_entities_via_tools() {
+        let s = state();
+        for (subj, doc) in [("OpenAI Inc.", 10), ("OpenAI", 20)] {
+            handle_request(
+                &s,
+                &json!({
+                    "jsonrpc":"2.0","id":1,"method":"tools/call",
+                    "params": {"name":"add_memory","arguments":{
+                        "subject":subj,"predicate":"based_in","object":"SF",
+                        "valid_from":1000,"doc":doc,"chunk":1}}
+                }),
+            );
+        }
+        let resp = handle_request(
+            &s,
+            &json!({
+                "jsonrpc":"2.0","id":2,"method":"tools/call",
+                "params": {"name":"resolve_entities","arguments":{"threshold":0.9}}
+            }),
+        );
+        let text = resp["result"]["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("merged 1"), "got {text}");
     }
 
     #[test]
