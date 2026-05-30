@@ -170,6 +170,14 @@ td code { white-space: nowrap; }
 .ok { color: var(--accent-2); }
 .plan { color: var(--warn); }
 
+/* Feature cards (value proposition) */
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.card { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; background: var(--bg-soft); }
+.card .ic { color: var(--accent); font-size: .7rem; font-weight: 700; letter-spacing: .1em; }
+.card h4 { margin: .35rem 0 .45rem; font-size: 1rem; }
+.card p { margin: 0; color: var(--text-dim); font-size: .88rem; line-height: 1.55; }
+td.q { color: var(--text); width: 46%; }
+
 /* Architecture diagrams (inline SVG) */
 .diagram { width: 100%; height: auto; margin: 1.25rem 0 .5rem; display: block; }
 .diagram .band { fill: rgba(88,166,255,.05); stroke: var(--border); }

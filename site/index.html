@@ -33,6 +33,7 @@
     <div class="nav-group">
       <h4><span class="en">Getting started</span><span class="zh">开始</span></h4>
       <a href="#overview"><span class="en">Overview</span><span class="zh">概览</span></a>
+      <a href="#why"><span class="en">What &amp; why</span><span class="zh">能做什么 · 解决什么</span></a>
       <a href="#quickstart"><span class="en">Quick start</span><span class="zh">快速开始</span></a>
       <a href="#concepts"><span class="en">Core concepts</span><span class="zh">核心概念</span></a>
       <a href="#architecture"><span class="en">Architecture</span><span class="zh">架构</span></a>
@@ -74,6 +75,108 @@
       <p class="en" style="margin:0"><strong>What this engine does without an LLM:</strong> there is no built-in embedding model, so the <code>SIMILAR(...)</code> operator ranks facts with a real <strong>BM25</strong> index over their verbalized text. Everything else — bitemporal storage, atomic upsert, point-in-time queries, provenance/citations, communities, entity resolution, multi-tenancy and durability — is implemented and tested.</p>
       <p class="zh" style="margin:0"><strong>没有 LLM 时它能做什么:</strong> 引擎不内置 embedding model,因此 <code>SIMILAR(...)</code> 用真实的 <strong>BM25</strong> index 对 fact 文本排序。其余能力——bitemporal storage、atomic upsert、point-in-time query、provenance/citation、community、entity resolution、multi-tenancy 与 durability——均已实现并测试。</p>
     </div>
+
+    <!-- WHAT & WHY -->
+    <section id="why">
+      <h2><span class="en">What it does &amp; what it solves</span><span class="zh">它能做什么、解决什么</span></h2>
+      <p class="en">Chronos-Graph is the <strong>memory layer</strong> for RAG pipelines and AI agents. You write <em>facts</em> as they are learned; it remembers <em>when</em> each fact was true and <em>when</em> you learned it, keeps contradictions instead of overwriting them, and answers queries with cited, point-in-time, LLM-ready context — in one call.</p>
+      <p class="zh">Chronos-Graph 是 RAG 流水线与 AI agent 的 <strong>memory layer</strong>。你随学随写 <em>fact</em>,它会记住每条 fact <em>何时为真</em>、<em>何时被获知</em>,矛盾事实只保留不覆盖,并在一次调用里返回带 citation、point-in-time 正确、可直接喂给 LLM 的上下文。</p>
+
+      <div class="features">
+        <div class="card">
+          <div class="ic">TEMPORAL</div>
+          <h4><span class="en">Time-travel memory</span><span class="zh">时间旅行式记忆</span></h4>
+          <p class="en">Store facts with both <em>valid time</em> and <em>transaction time</em>, then ask what you knew as of any past instant.</p>
+          <p class="zh">为 fact 同时记录 <em>valid time</em> 与 <em>transaction time</em>,可查询任意历史时刻「当时已知什么」。</p>
+        </div>
+        <div class="card">
+          <div class="ic">NON-LOSSY</div>
+          <h4><span class="en">History is never lost</span><span class="zh">历史永不丢失</span></h4>
+          <p class="en">Contradictions <em>invalidate</em> the old fact instead of deleting it, so the full timeline stays queryable.</p>
+          <p class="zh">矛盾事实只 <em>invalidate</em> 旧 fact 而非删除,完整时间线始终可查。</p>
+        </div>
+        <div class="card">
+          <div class="ic">PROVENANCE</div>
+          <h4><span class="en">Cited answers</span><span class="zh">可引用的答案</span></h4>
+          <p class="en">Every retrieved line traces back to its source <code>doc</code>/<code>chunk</code> — no unsourced claims.</p>
+          <p class="zh">每条检索结果都可回溯到来源 <code>doc</code>/<code>chunk</code>,不凭空捏造。</p>
+        </div>
+        <div class="card">
+          <div class="ic">HYBRID</div>
+          <h4><span class="en">One-call retrieval</span><span class="zh">一次调用完成检索</span></h4>
+          <p class="en">BM25 full-text, graph traversal and temporal filtering combine in a single extended-Cypher query.</p>
+          <p class="zh">BM25 全文、graph 遍历与 temporal 过滤在一条 extended-Cypher query 中合并完成。</p>
+        </div>
+        <div class="card">
+          <div class="ic">LLM-READY</div>
+          <h4><span class="en">Context, not rows</span><span class="zh">输出上下文而非数据行</span></h4>
+          <p class="en">Token-budgeted subgraph selection serializes to graph-to-text the model can read directly.</p>
+          <p class="zh">按 token budget 选子图并 graph-to-text 序列化,直接产出模型可读的上下文。</p>
+        </div>
+        <div class="card">
+          <div class="ic">AGENT-NATIVE</div>
+          <h4><span class="en">Multiple front doors</span><span class="zh">多种接入方式</span></h4>
+          <p class="en">Use it over REST, as a built-in MCP server, or as an embedded Rust library — same kernel, with tenant isolation and durable RocksDB.</p>
+          <p class="zh">可经 REST、内置 MCP server 或嵌入式 Rust library 使用——同一 kernel,带 tenant 隔离与持久化 RocksDB。</p>
+        </div>
+      </div>
+
+      <h3><span class="en">Problems it solves</span><span class="zh">它解决的问题</span></h3>
+      <p class="en">Most GraphRAG / agent-memory stacks bolt temporal logic, invalidation, hybrid retrieval and provenance onto a general-purpose graph store at the framework layer. Chronos-Graph pushes them <em>into the engine</em>:</p>
+      <p class="zh">多数 GraphRAG / agent-memory 方案是在通用 graph store 之上、于框架层拼装 temporal logic、invalidation、hybrid retrieval 与 provenance。Chronos-Graph 把它们 <em>下推进 engine</em>:</p>
+      <table>
+        <tr>
+          <th><span class="en">Pain point in RAG / agent memory</span><span class="zh">RAG / agent memory 的痛点</span></th>
+          <th><span class="en">Chronos-Graph approach</span><span class="zh">Chronos-Graph 的做法</span></th>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Facts go stale; retrieval can't answer "what was true back then"</span><span class="zh">事实会过时,检索无法回答「当时为真的是什么」</span></td>
+          <td><span class="en">Bitemporal validity + point-in-time <code>AS OF VALID|TRANSACTION TIME</code></span><span class="zh">Bitemporal validity + point-in-time <code>AS OF VALID|TRANSACTION TIME</code></span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">New info silently overwrites old, destroying history</span><span class="zh">新信息悄悄覆盖旧信息,历史被抹掉</span></td>
+          <td><span class="en">Non-lossy <em>invalidation</em>: the old fact's span is closed, history preserved</span><span class="zh">Non-lossy <em>invalidation</em>:关闭旧 fact 的区间,历史保留</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Answers can't be traced to a source</span><span class="zh">答案无法溯源</span></td>
+          <td><span class="en">First-class <em>provenance</em>: triple ↔ chunk ↔ document; <code>RETURN CONTEXT(cite = true)</code></span><span class="zh">一等公民 <em>provenance</em>:triple ↔ chunk ↔ document;<code>RETURN CONTEXT(cite = true)</code></span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Vector / keyword / graph search live in separate systems, glued at the app layer</span><span class="zh">向量 / 关键词 / 图检索分散在不同系统,靠应用层拼接</span></td>
+          <td><span class="en">Engine-level hybrid: BM25 + graph + temporal ranked together in one query</span><span class="zh">引擎级 hybrid:BM25 + graph + temporal 在一条 query 内统一排序</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Retrieval returns rows the LLM still has to assemble</span><span class="zh">检索只返回数据行,还得 LLM 自己拼装</span></td>
+          <td><span class="en">Token-budget subgraph + graph-to-text → LLM-ready, cited context</span><span class="zh">token-budget 选子图 + graph-to-text → 可直接用、带 citation 的上下文</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Recomputing communities on every update is expensive (batch GraphRAG)</span><span class="zh">每次更新都全量重算 community 代价高(batch GraphRAG)</span></td>
+          <td><span class="en">Incremental communities: a new fact only touches the two affected components</span><span class="zh">Incremental communities:新 fact 只影响相关的两个 component</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Multiple users / teams share one store and leak into each other</span><span class="zh">多用户 / 团队共用一个库会互相串数据</span></td>
+          <td><span class="en">Tenant push-down: a tenant-scoped request can never see another tenant's facts</span><span class="zh">Tenant push-down:限定 tenant 的请求绝不会看到别的 tenant 的 fact</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en">Agents need a memory API, not a DB driver</span><span class="zh">agent 需要的是 memory API,不是 DB driver</span></td>
+          <td><span class="en">Built-in MCP server exposes <code>add_memory</code> / <code>search_memory</code> / <code>list_communities</code> / <code>resolve_entities</code></span><span class="zh">内置 MCP server 暴露 <code>add_memory</code> / <code>search_memory</code> / <code>list_communities</code> / <code>resolve_entities</code></span></td>
+        </tr>
+      </table>
+
+      <h3><span class="en">When to use it</span><span class="zh">适用场景</span></h3>
+      <ul>
+        <li class="en">Long-term <strong>memory for LLM agents</strong> — remember, update and time-scope what they learn, without losing the audit trail.</li>
+        <li class="zh"><strong>LLM agent 的长期 memory</strong>——记住、更新并按时间界定所学,同时保留可审计的历史。</li>
+        <li class="en"><strong>GraphRAG with citations</strong> — grounded answers where every claim links to a source and contradictions are handled explicitly.</li>
+        <li class="zh"><strong>带 citation 的 GraphRAG</strong>——每个论断都连到来源、矛盾被显式处理的可溯源问答。</li>
+        <li class="en"><strong>Temporal knowledge base / audit log</strong> — query the state of the world "as of" any past instant for compliance or debugging.</li>
+        <li class="zh"><strong>时态知识库 / 审计日志</strong>——为合规或排查,查询任意历史时刻「当时」的世界状态。</li>
+        <li class="en"><strong>Multi-tenant SaaS memory</strong> — one engine, hard isolation per tenant, durable on RocksDB.</li>
+        <li class="zh"><strong>多租户 SaaS memory</strong>——一个 engine、按 tenant 硬隔离、基于 RocksDB 持久化。</li>
+      </ul>
+      <p class="en" style="color:var(--text-dim)">Ready to try it? Jump to <a href="#quickstart">Quick start</a>, or see the <a href="#architecture">architecture</a> for how it fits together.</p>
+      <p class="zh" style="color:var(--text-dim)">想上手?直接看 <a href="#quickstart">快速开始</a>,或查看<a href="#architecture">架构</a>了解整体如何组合。</p>
+    </section>
 
     <!-- QUICK START -->
     <section id="quickstart">
