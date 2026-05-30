@@ -16,12 +16,23 @@ async fn post_json(
     uri: &str,
     body: serde_json::Value,
 ) -> (StatusCode, serde_json::Value) {
-    let req = Request::builder()
+    post_json_tenant(app, uri, body, None).await
+}
+
+async fn post_json_tenant(
+    app: axum::Router,
+    uri: &str,
+    body: serde_json::Value,
+    tenant: Option<&str>,
+) -> (StatusCode, serde_json::Value) {
+    let mut builder = Request::builder()
         .method("POST")
         .uri(uri)
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap();
+        .header("content-type", "application/json");
+    if let Some(t) = tenant {
+        builder = builder.header("x-tenant-id", t);
+    }
+    let req = builder.body(Body::from(body.to_string())).unwrap();
     let resp = app.oneshot(req).await.unwrap();
     let status = resp.status();
     let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
@@ -198,6 +209,45 @@ async fn resolve_merges_surface_variants() {
     .await;
     assert_eq!(s_run, StatusCode::OK);
     assert_eq!(run["merged"].as_u64(), Some(1));
+}
+
+#[tokio::test]
+async fn tenant_header_isolates_search() {
+    let app = app();
+    // Same subject, different tenants, different objects.
+    post_json_tenant(
+        app.clone(),
+        "/v1/memory",
+        serde_json::json!({
+            "subject": "Alice", "predicate": "lives_in", "object": "Beijing",
+            "valid_from": 1000, "doc": 10, "chunk": 1
+        }),
+        Some("1"),
+    )
+    .await;
+    post_json_tenant(
+        app.clone(),
+        "/v1/memory",
+        serde_json::json!({
+            "subject": "Alice", "predicate": "lives_in", "object": "Tokyo",
+            "valid_from": 1000, "doc": 20, "chunk": 1
+        }),
+        Some("2"),
+    )
+    .await;
+
+    let q = serde_json::json!({
+        "query": "MATCH (n) WHERE SIMILAR(n, \"Alice\") RETURN CONTEXT(cite = true)"
+    });
+    let (_, b1) = post_json_tenant(app.clone(), "/v1/search", q.clone(), Some("1")).await;
+    let (_, b2) = post_json_tenant(app.clone(), "/v1/search", q.clone(), Some("2")).await;
+    assert!(b1["text"].as_str().unwrap().contains("Beijing"));
+    assert!(!b1["text"].as_str().unwrap().contains("Tokyo"));
+    assert!(b2["text"].as_str().unwrap().contains("Tokyo"));
+
+    // The default tenant sees neither.
+    let (_, b0) = post_json(app.clone(), "/v1/search", q).await;
+    assert_eq!(b0["text"].as_str().unwrap(), "");
 }
 
 #[tokio::test]

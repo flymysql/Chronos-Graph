@@ -52,6 +52,11 @@ pushes these capabilities **down into the database engine itself**:
 >   merges them transactionally: facts are rewritten onto the canonical node
 >   (preserving each fact's bitemporal span and provenance) and exact duplicates
 >   are deduped. Exposed via `POST /v1/resolve` and the `resolve_entities` tool.
+> - **Multi-tenancy / ACL push-down** (M4): every fact carries a `TenantId`, and
+>   retrieval, community summaries and resolution push the tenant filter into
+>   the scan — a tenant-scoped retriever can never observe another tenant's
+>   facts, and contradiction detection never crosses the boundary. The HTTP
+>   layer reads the tenant from the `X-Tenant-Id` header.
 > - `sdks/`: dependency-free **Python** and **TypeScript** REST clients.
 >
 > ```cypher

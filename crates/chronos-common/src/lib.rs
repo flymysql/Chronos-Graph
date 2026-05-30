@@ -9,7 +9,7 @@ pub mod ids;
 pub mod time;
 
 pub use error::{Error, Result};
-pub use ids::{ChunkId, DocId, EdgeId, NodeId, PredicateId, ProvenanceRef, VectorId};
+pub use ids::{ChunkId, DocId, EdgeId, NodeId, PredicateId, ProvenanceRef, TenantId, VectorId};
 pub use time::{AsOf, BitemporalSpan, Timestamp};
 
 /// A token budget for context assembly (number of LLM tokens).

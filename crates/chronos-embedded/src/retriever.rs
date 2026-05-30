@@ -8,7 +8,7 @@
 //! -> graph-to-text with citations.
 
 use crate::FactStore;
-use chronos_common::{AsOf, Result, TokenBudget};
+use chronos_common::{AsOf, Result, TenantId, TokenBudget};
 use chronos_graph_model::{Edge, Node, Subgraph};
 use chronos_provenance::Citation;
 use chronos_query::executor::{ContextBlock, RetrievalOperator};
@@ -20,11 +20,21 @@ const DEFAULT_BUDGET: usize = 4096;
 
 pub struct MemoryRetriever<'a> {
     store: &'a FactStore,
+    tenant: TenantId,
 }
 
 impl<'a> MemoryRetriever<'a> {
+    /// Retriever scoped to the DEFAULT tenant.
     pub fn new(store: &'a FactStore) -> Self {
-        Self { store }
+        Self {
+            store,
+            tenant: TenantId::DEFAULT,
+        }
+    }
+
+    /// Retriever scoped to `tenant`: it can only see that tenant's facts.
+    pub fn new_for(store: &'a FactStore, tenant: TenantId) -> Self {
+        Self { store, tenant }
     }
 
     /// Lexical similarity in `[0, 1]`: fraction of query terms present in the
@@ -48,7 +58,7 @@ impl<'a> MemoryRetriever<'a> {
     fn ranked_facts(&self, similar_to: Option<&str>, at: AsOf) -> Result<Vec<(f32, Fact)>> {
         let mut scored: Vec<(f32, Fact)> = self
             .store
-            .as_of(at)?
+            .as_of_for(self.tenant, at)?
             .facts
             .into_iter()
             .map(|f| {

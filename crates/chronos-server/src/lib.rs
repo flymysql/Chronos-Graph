@@ -15,12 +15,12 @@ pub mod session;
 
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
-use chronos_common::{ChunkId, DocId, Timestamp};
+use chronos_common::{ChunkId, DocId, TenantId, Timestamp};
 use chronos_embedded::{FactStore, MemoryRetriever};
 use chronos_temporal::ConflictPolicy;
 use serde::{Deserialize, Serialize};
@@ -60,6 +60,16 @@ async fn healthz() -> &'static str {
     "ok"
 }
 
+/// Extract the tenant from the `X-Tenant-Id` header (defaults to DEFAULT).
+fn tenant_from(headers: &HeaderMap) -> TenantId {
+    headers
+        .get("x-tenant-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<u64>().ok())
+        .map(TenantId::new)
+        .unwrap_or(TenantId::DEFAULT)
+}
+
 #[derive(Debug, Deserialize)]
 struct MemoryReq {
     subject: String,
@@ -81,13 +91,15 @@ struct MemoryResp {
 
 async fn add_memory(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<MemoryReq>,
 ) -> Result<Json<MemoryResp>, ApiError> {
     let policy = match req.policy.as_deref() {
         Some("append") => ConflictPolicy::AppendOnly,
         _ => ConflictPolicy::UniqueSubjectPredicate,
     };
-    let edge = state.store.ingest(
+    let edge = state.store.ingest_for(
+        tenant_from(&headers),
         &req.subject,
         &req.predicate,
         &req.object,
@@ -121,9 +133,10 @@ struct SearchResp {
 
 async fn search(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<SearchReq>,
 ) -> Result<Json<SearchResp>, ApiError> {
-    let retriever = MemoryRetriever::new(&state.store);
+    let retriever = MemoryRetriever::new_for(&state.store, tenant_from(&headers));
     let block = retriever.answer(&req.query)?;
     Ok(Json(SearchResp {
         text: block.text,
@@ -151,8 +164,11 @@ struct CommunitiesResp {
     communities: Vec<CommunityJson>,
 }
 
-async fn communities(State(state): State<AppState>) -> Result<Json<CommunitiesResp>, ApiError> {
-    let comms = state.store.community_summaries()?;
+async fn communities(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<CommunitiesResp>, ApiError> {
+    let comms = state.store.community_summaries_for(tenant_from(&headers))?;
     Ok(Json(CommunitiesResp {
         communities: comms
             .into_iter()
@@ -191,11 +207,13 @@ struct ResolveResp {
 
 async fn resolve(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(req): Json<ResolveReq>,
 ) -> Result<Json<ResolveResp>, ApiError> {
+    let tenant = tenant_from(&headers);
     let candidates = state
         .store
-        .resolution_candidates(req.threshold)
+        .resolution_candidates_for(tenant, req.threshold)
         .into_iter()
         .map(|(keep, drop, score)| CandidateJson {
             keep: keep.raw(),
@@ -208,7 +226,7 @@ async fn resolve(
     let merged = if req.dry_run {
         0
     } else {
-        state.store.auto_resolve(req.threshold)?
+        state.store.auto_resolve_for(tenant, req.threshold)?
     };
     Ok(Json(ResolveResp { merged, candidates }))
 }

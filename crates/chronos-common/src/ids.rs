@@ -47,6 +47,17 @@ id_newtype!(
     /// Identifies a source chunk within a document.
     ChunkId
 );
+id_newtype!(
+    /// Identifies a tenant (isolation boundary). Facts, retrieval, communities
+    /// and entity resolution are all scoped to a tenant. `TenantId::DEFAULT`
+    /// (0) is the single-tenant / system tenant used when none is specified.
+    TenantId
+);
+
+impl TenantId {
+    /// The default (single-tenant) boundary.
+    pub const DEFAULT: TenantId = TenantId(0);
+}
 
 /// A back-reference from a fact to the source text it was extracted from.
 ///
