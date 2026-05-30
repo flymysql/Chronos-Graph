@@ -112,6 +112,9 @@ name = "chronos-embedded"
 version = "0.0.1"
 dependencies = [
  "chronos-common",
+ "chronos-graph-model",
+ "chronos-provenance",
+ "chronos-query",
  "chronos-storage",
  "chronos-temporal",
  "proptest",

@@ -28,6 +28,18 @@ pushes these capabilities **down into the database engine itself**:
 >   **`UPSERT_FACT`** operator (contradiction detection + valid-time
 >   supersession, non-lossy) and **point-in-time `as_of`** queries over both
 >   timelines, verified with property-based tests.
+> - `chronos-query` (M2): a real lexer + recursive-descent parser for the
+>   extended Cypher subset (`AS OF [VALID|TRANSACTION] TIME`, `SIMILAR(...)`,
+>   `TRAVERSE SEMANTIC(...)`, `RETURN CONTEXT(cite=...)`), plus
+>   `GreedyBudgeter` and `DefaultContextSerializer` operators.
+> - `MemoryRetriever` (M2): wires `FactStore` into the query layer and provides
+>   an end-to-end **"question -> cited, point-in-time context"** pipeline.
+>
+> ```cypher
+> MATCH (n) WHERE SIMILAR(n, "Alice lives")
+> AS OF VALID TIME 1500
+> RETURN CONTEXT(cite = true)
+> ```
 >
 > See [docs/implementation.md](docs/implementation.md) for the engineering plan
 > and [docs/design.md](docs/design.md) for the architecture rationale.
