@@ -1,0 +1,17 @@
+[package]
+name = "chronos-query"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Query language (openCypher subset + temporal/semantic extensions), planner, cost-based optimizer, and physical executors."
+
+[dependencies]
+chronos-common.workspace = true
+chronos-graph-model.workspace = true
+chronos-storage.workspace = true
+chronos-index.workspace = true
+chronos-temporal.workspace = true
+chronos-provenance.workspace = true

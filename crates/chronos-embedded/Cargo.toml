@@ -1,0 +1,15 @@
+[package]
+name = "chronos-embedded"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Embedded library form factor (single-node / edge agent memory) sharing the same engine kernel."
+
+[dependencies]
+chronos-common.workspace = true
+chronos-query.workspace = true
+chronos-storage.workspace = true
+chronos-temporal.workspace = true

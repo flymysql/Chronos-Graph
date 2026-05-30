@@ -1,0 +1,14 @@
+[package]
+name = "chronos-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Service layer: gRPC/HTTP endpoints, sessions, multi-tenancy and ACL push-down. Async runtime (tokio/tonic/axum) planned."
+
+[dependencies]
+chronos-common.workspace = true
+chronos-query.workspace = true
+chronos-temporal.workspace = true

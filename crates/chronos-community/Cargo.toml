@@ -1,0 +1,13 @@
+[package]
+name = "chronos-community"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "[Phase 2] Hierarchical community detection (Leiden) and incrementally maintained community summaries as materialized views."
+
+[dependencies]
+chronos-common.workspace = true
+chronos-graph-model.workspace = true

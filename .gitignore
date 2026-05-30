@@ -1,0 +1,18 @@
+/target
+**/*.rs.bk
+Cargo.lock.orig
+.DS_Store
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+
+# Python SDK
+sdks/python/__pycache__/
+sdks/python/*.egg-info/
+sdks/python/.venv/
+
+# TypeScript SDK
+sdks/typescript/node_modules/
+sdks/typescript/dist/

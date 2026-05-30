@@ -1,0 +1,50 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/chronos-common",
+    "crates/chronos-storage",
+    "crates/chronos-graph-model",
+    "crates/chronos-index",
+    "crates/chronos-temporal",
+    "crates/chronos-provenance",
+    "crates/chronos-query",
+    "crates/chronos-community",
+    "crates/chronos-resolution",
+    "crates/chronos-server",
+    "crates/chronos-mcp",
+    "crates/chronos-embedded",
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/flymysql/Chronos-Graph"
+authors = ["Chronos-Graph Contributors"]
+
+[workspace.dependencies]
+# Internal crates
+chronos-common = { path = "crates/chronos-common" }
+chronos-storage = { path = "crates/chronos-storage" }
+chronos-graph-model = { path = "crates/chronos-graph-model" }
+chronos-index = { path = "crates/chronos-index" }
+chronos-temporal = { path = "crates/chronos-temporal" }
+chronos-provenance = { path = "crates/chronos-provenance" }
+chronos-query = { path = "crates/chronos-query" }
+chronos-community = { path = "crates/chronos-community" }
+chronos-resolution = { path = "crates/chronos-resolution" }
+chronos-server = { path = "crates/chronos-server" }
+
+# NOTE: Heavy backend dependencies are intentionally NOT enabled in this
+# skeleton so the first build stays green and fast. They are planned per the
+# implementation doc and will be wired in behind the trait boundaries:
+#   rust-rocksdb  -> chronos-storage (LSM backend)
+#   tantivy       -> chronos-index   (BM25 / full-text)
+#   hnsw_rs       -> chronos-index   (vector index)
+#   tonic / axum  -> chronos-server  (gRPC / REST)
+#   tokio         -> chronos-server / chronos-mcp (async runtime)
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,13 @@
+[package]
+name = "chronos-index"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Secondary indexes: vector (HNSW) and full-text (BM25), plus embedding lifecycle management."
+
+[dependencies]
+chronos-common.workspace = true
+# Planned: hnsw_rs (vector) and tantivy (BM25) behind feature flags.

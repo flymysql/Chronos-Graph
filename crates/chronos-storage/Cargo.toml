@@ -1,0 +1,13 @@
+[package]
+name = "chronos-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Storage engine: bitemporal record codec, MVCC, transactions, and the interval index. RocksDB backend is planned behind the StorageEngine trait."
+
+[dependencies]
+chronos-common.workspace = true
+# Planned: rust-rocksdb (LSM backend) behind the `rocks` feature.

@@ -1,0 +1,12 @@
+[package]
+name = "chronos-graph-model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Graph model for Chronos-Graph: nodes, edges, properties, and the 3-tier subgraphs (episode/entity/community)."
+
+[dependencies]
+chronos-common.workspace = true
