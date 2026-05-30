@@ -595,21 +595,110 @@ println!("{}", block.text);</code></pre></div>
     <!-- QUERY -->
     <section id="query">
       <h2><span class="en">Query language</span><span class="zh">查询语言</span></h2>
-      <p class="en">An OpenCypher subset extended with RAG/temporal operators.</p>
-      <p class="zh">在 OpenCypher subset 基础上扩展了 RAG / temporal operator。</p>
+      <p class="en">An OpenCypher subset extended with RAG / temporal operators. It has two surfaces: a <strong>read</strong> language you send to <code>/v1/search</code>, and <strong>write</strong> operations expressed through the atomic <code>UPSERT_FACT</code> operation (not the text language). "Delete" and "update" map onto <em>bitemporal</em> operations, not destructive edits.</p>
+      <p class="zh">在 OpenCypher subset 基础上扩展了 RAG / temporal operator。它分两个面:发给 <code>/v1/search</code> 的<strong>读</strong>语言,以及通过原子 <code>UPSERT_FACT</code> operation 表达的<strong>写</strong>操作(不走文本语言)。「删除」「更新」都映射为 <em>bitemporal</em> 操作,而非破坏性改写。</p>
+
+      <h3><span class="en">Read queries — grammar</span><span class="zh">读查询 — 语法</span></h3>
+      <p class="en">Every clause is optional and clauses are order-sensitive (top to bottom). Today <code>WHERE</code> only interprets <code>SIMILAR(...)</code>; any other predicate is parsed but ignored.</p>
+      <p class="zh">所有 clause 均可选,且<strong>顺序敏感</strong>(自上而下)。目前 <code>WHERE</code> 只解释 <code>SIMILAR(...)</code>;其他谓词会被解析但忽略。</p>
+      <div class="code"><pre><code>MATCH ( &lt;var&gt; )
+[ WHERE SIMILAR(&lt;var&gt;, "text") [ AND SIMILAR(...) ... ] ]
+[ AS OF ( VALID | TRANSACTION ) TIME &lt;ms&gt; ]
+[ TRAVERSE SEMANTIC( depth &lt;= &lt;n&gt; , budget = &lt;n&gt; tokens ) ]
+RETURN ( CONTEXT( cite = true | false )  |  &lt;ident&gt; [ , &lt;ident&gt; ... ] )</code></pre></div>
+
+      <h4><span class="en">Clause reference</span><span class="zh">Clause 参考</span></h4>
       <table>
         <tr><th><span class="en">Clause</span><span class="zh">子句</span></th><th><span class="en">Meaning</span><span class="zh">含义</span></th></tr>
         <tr><td><code>MATCH (n)</code></td><td><span class="en">bind nodes (entry point)</span><span class="zh">绑定 node(入口)</span></td></tr>
         <tr><td><code>WHERE SIMILAR(n, "text")</code></td><td><span class="en">BM25 relevance ranking over fact text</span><span class="zh">对 fact 文本做 BM25 relevance ranking</span></td></tr>
         <tr><td><code>AS OF VALID TIME &lt;ms&gt;</code></td><td><span class="en">point-in-time on the valid timeline</span><span class="zh">valid timeline 上的 point-in-time</span></td></tr>
         <tr><td><code>AS OF TRANSACTION TIME &lt;ms&gt;</code></td><td><span class="en">point-in-time on the transaction timeline</span><span class="zh">transaction timeline 上的 point-in-time</span></td></tr>
-        <tr><td><code>TRAVERSE SEMANTIC(budget = N tokens)</code></td><td><span class="en">token-budgeted expansion</span><span class="zh">按 token budget 扩展</span></td></tr>
+        <tr><td><code>TRAVERSE SEMANTIC(depth &lt;= N)</code></td><td><span class="en">bound multi-hop expansion depth</span><span class="zh">限制 multi-hop 扩展深度</span></td></tr>
+        <tr><td><code>TRAVERSE SEMANTIC(budget = N tokens)</code></td><td><span class="en">token-budgeted subgraph selection</span><span class="zh">按 token budget 选子图</span></td></tr>
         <tr><td><code>RETURN CONTEXT(cite = true|false)</code></td><td><span class="en">graph-to-text, optionally with citations</span><span class="zh">graph-to-text,可选附带 citation</span></td></tr>
+        <tr><td><code>RETURN n [, m ...]</code></td><td><span class="en">plain identifier projection (facts) instead of serialized context</span><span class="zh">普通 identifier projection(返回 fact),而非序列化 context</span></td></tr>
       </table>
-      <div class="code"><pre><code>MATCH (n) WHERE SIMILAR(n, "Alice lives")
+      <p class="en">Examples:</p>
+      <p class="zh">示例:</p>
+      <div class="code"><pre><code># Hybrid + point-in-time + budget, serialized to cited context
+MATCH (n) WHERE SIMILAR(n, "Alice lives")
 AS OF VALID TIME 1500
-TRAVERSE SEMANTIC(budget = 256 tokens)
-RETURN CONTEXT(cite = true)</code></pre></div>
+TRAVERSE SEMANTIC(depth &lt;= 2, budget = 256 tokens)
+RETURN CONTEXT(cite = true)
+
+# Minimal: relevance-ranked facts, no serialization
+MATCH (n) WHERE SIMILAR(n, "Alice") RETURN n
+
+# As the system knew it at tx-time 42
+AS OF TRANSACTION TIME 42 RETURN CONTEXT(cite = false)</code></pre></div>
+
+      <h3><span class="en">Write operations (create · update · delete)</span><span class="zh">写操作(增 · 改 · 删)</span></h3>
+      <p class="en">Writes go through one atomic operation — <code>UPSERT_FACT</code> — exposed as <code>POST /v1/memory</code> (REST), <code>add_memory</code> (MCP) and <code>FactStore::ingest</code> / <code>upsert_fact</code> (embedded). Within a single engine transaction it detects contradictions, closes invalidated spans, and appends the new fact. The <code>policy</code> selects the conflict behaviour.</p>
+      <p class="zh">写操作只走一个原子 operation —— <code>UPSERT_FACT</code>,对外是 <code>POST /v1/memory</code>(REST)、<code>add_memory</code>(MCP)与 <code>FactStore::ingest</code> / <code>upsert_fact</code>(embedded)。它在单个 engine transaction 内检测矛盾、关闭被 invalidate 的区间、追加新 fact。<code>policy</code> 决定冲突行为。</p>
+      <table>
+        <tr>
+          <th><span class="en">Intent</span><span class="zh">意图</span></th>
+          <th><span class="en">How</span><span class="zh">做法</span></th>
+          <th><span class="en">Effect</span><span class="zh">效果</span></th>
+        </tr>
+        <tr>
+          <td class="q"><span class="en"><strong>Create</strong> (insert)</span><span class="zh"><strong>增</strong>(insert)</span></td>
+          <td><span class="en"><code>UPSERT_FACT</code> a new <code>(subject, predicate, object)</code></span><span class="zh"><code>UPSERT_FACT</code> 一条新的 <code>(subject, predicate, object)</code></span></td>
+          <td><span class="en">appends a fact valid from <code>valid_from</code></span><span class="zh">追加一条自 <code>valid_from</code> 起有效的 fact</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en"><strong>Update</strong> (supersede)</span><span class="zh"><strong>改</strong>(supersede)</span></td>
+          <td><span class="en">same <code>(subject, predicate)</code>, new <code>object</code>, <code>policy = unique</code></span><span class="zh">同一 <code>(subject, predicate)</code>、新 <code>object</code>,<code>policy = unique</code></span></td>
+          <td><span class="en">closes the old fact's <em>valid</em> span at the new <code>valid_from</code> (non-lossy) and appends the new one</span><span class="zh">在新 <code>valid_from</code> 处关闭旧 fact 的 <em>valid</em> 区间(无损)并追加新 fact</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en"><strong>Append</strong> (coexist)</span><span class="zh"><strong>并存</strong>(append)</span></td>
+          <td><span class="en"><code>policy = append</code> (<code>AppendOnly</code>)</span><span class="zh"><code>policy = append</code>(<code>AppendOnly</code>)</span></td>
+          <td><span class="en">adds a multi-valued fact without invalidating any existing one</span><span class="zh">写入一条多值 fact,不 invalidate 任何已有 fact</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en"><strong>Delete</strong> (logical)</span><span class="zh"><strong>删</strong>(逻辑删除)</span></td>
+          <td><span class="en">supersede with a contradicting fact, or invalidate the source</span><span class="zh">用矛盾 fact supersede,或对来源做 source invalidation</span></td>
+          <td><span class="en">the old fact's valid span is closed; it stays queryable via <code>AS OF</code>. No hard delete is exposed.</span><span class="zh">旧 fact 的 valid 区间被关闭;仍可经 <code>AS OF</code> 查到。不提供物理硬删除。</span></td>
+        </tr>
+        <tr>
+          <td class="q"><span class="en"><strong>Merge entities</strong></span><span class="zh"><strong>实体合并</strong></span></td>
+          <td><span class="en"><code>POST /v1/resolve</code> / <code>merge_nodes</code></span><span class="zh"><code>POST /v1/resolve</code> / <code>merge_nodes</code></span></td>
+          <td><span class="en">rewrites facts onto the canonical node (keeping each span + provenance), dedupes exact duplicates</span><span class="zh">把 fact 改写到 canonical node(保留各自区间 + provenance),去重完全相同的 fact</span></td>
+        </tr>
+      </table>
+      <p class="en"><code>policy</code> values: <code>unique</code> (<code>UniqueSubjectPredicate</code>, default — one open value per subject+predicate) and <code>append</code> (<code>AppendOnly</code>). A third <code>SemanticJudge</code> defers conflict detection to an external LLM judge and is an engine-side no-op.</p>
+      <p class="zh"><code>policy</code> 取值:<code>unique</code>(<code>UniqueSubjectPredicate</code>,默认 —— 每个 subject+predicate 仅一个开放值)与 <code>append</code>(<code>AppendOnly</code>)。第三个 <code>SemanticJudge</code> 把冲突判定交给外部 LLM judge,引擎侧是 no-op。</p>
+      <div class="code"><pre><code># Create
+curl -XPOST localhost:8080/v1/memory -H 'content-type: application/json' \
+  -d '{"subject":"Alice","predicate":"lives_in","object":"Beijing","valid_from":1000,"doc":10,"chunk":1}'
+
+# Update / supersede (same subject+predicate, new object) — old span closed at 2000
+curl -XPOST localhost:8080/v1/memory -H 'content-type: application/json' \
+  -d '{"subject":"Alice","predicate":"lives_in","object":"Shanghai","valid_from":2000,"doc":11,"chunk":1,"policy":"unique"}'
+
+# Append (coexisting, multi-valued)
+curl -XPOST localhost:8080/v1/memory -H 'content-type: application/json' \
+  -d '{"subject":"Alice","predicate":"speaks","object":"English","valid_from":1000,"doc":12,"chunk":1,"policy":"append"}'</code></pre></div>
+
+      <h3><span class="en">Aggregation &amp; advanced predicates — not yet</span><span class="zh">聚合与高级谓词 —— 暂未支持</span></h3>
+      <p class="en">To set expectations clearly, the text language does <strong>not</strong> yet support the following. They are on the roadmap; for now do them client-side or via the typed embedded API.</p>
+      <p class="zh">为避免误解,文本语言目前<strong>尚不</strong>支持下列能力。它们在 roadmap 上;暂时请在客户端处理,或用 typed embedded API。</p>
+      <ul>
+        <li class="en">General <code>WHERE</code> comparisons / property filters (<code>=</code>, <code>&lt;</code>, <code>&gt;</code>, ranges) — only <code>SIMILAR</code> is interpreted today <span class="plan">(planned)</span></li>
+        <li class="zh">通用 <code>WHERE</code> 比较 / 属性过滤(<code>=</code>、<code>&lt;</code>、<code>&gt;</code>、区间)—— 目前只解释 <code>SIMILAR</code> <span class="plan">(planned)</span></li>
+        <li class="en">Aggregation: <code>COUNT</code> / <code>SUM</code> / <code>AVG</code> / <code>GROUP BY</code> <span class="plan">(planned)</span></li>
+        <li class="zh">聚合:<code>COUNT</code> / <code>SUM</code> / <code>AVG</code> / <code>GROUP BY</code> <span class="plan">(planned)</span></li>
+        <li class="en"><code>ORDER BY</code> / <code>LIMIT</code> / <code>SKIP</code> <span class="plan">(planned)</span></li>
+        <li class="zh"><code>ORDER BY</code> / <code>LIMIT</code> / <code>SKIP</code> <span class="plan">(planned)</span></li>
+        <li class="en">Variable-length / multi-hop path patterns (<code>(a)-[*1..3]-&gt;(b)</code>) and relationship-typed patterns <span class="plan">(planned)</span></li>
+        <li class="zh">变长 / multi-hop path pattern(<code>(a)-[*1..3]-&gt;(b)</code>)与带关系类型的 pattern <span class="plan">(planned)</span></li>
+        <li class="en"><code>CREATE</code> / <code>SET</code> / <code>DELETE</code> / <code>MERGE</code> statements — writes go through <code>UPSERT_FACT</code> instead <span class="plan">(by design)</span></li>
+        <li class="zh"><code>CREATE</code> / <code>SET</code> / <code>DELETE</code> / <code>MERGE</code> 语句 —— 写入统一走 <code>UPSERT_FACT</code> <span class="plan">(设计如此)</span></li>
+        <li class="en">A vector kNN query operator — the brute-force cosine index exists but isn't wired into the query language yet <span class="plan">(planned)</span></li>
+        <li class="zh">向量 kNN query operator —— brute-force cosine index 已存在,但尚未接入查询语言 <span class="plan">(planned)</span></li>
+      </ul>
     </section>
 
     <!-- TENANCY -->
