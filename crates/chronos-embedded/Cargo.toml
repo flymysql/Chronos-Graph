@@ -6,10 +6,12 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Embedded library form factor (single-node / edge agent memory) sharing the same engine kernel."
+description = "Embedded library form factor (single-node / edge agent memory) sharing the same engine kernel. Assembles storage + temporal into a transactional FactStore."
 
 [dependencies]
 chronos-common.workspace = true
-chronos-query.workspace = true
 chronos-storage.workspace = true
 chronos-temporal.workspace = true
+
+[dev-dependencies]
+proptest = "1"

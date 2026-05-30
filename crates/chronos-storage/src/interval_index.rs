@@ -25,6 +25,18 @@ pub struct InMemoryIntervalIndex {
     entries: Vec<(EdgeId, BitemporalSpan)>,
 }
 
+impl InMemoryIntervalIndex {
+    /// Overwrite the stored span for `id` (used when a fact's valid-time bound
+    /// is closed on real-world supersession). No-op if the id is absent.
+    pub fn replace_span(&mut self, id: EdgeId, span: BitemporalSpan) {
+        for (eid, s) in self.entries.iter_mut() {
+            if *eid == id {
+                *s = span;
+            }
+        }
+    }
+}
+
 impl IntervalIndex for InMemoryIntervalIndex {
     fn insert(&mut self, id: EdgeId, span: &BitemporalSpan) -> Result<()> {
         self.entries.push((id, *span));
