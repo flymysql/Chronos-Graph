@@ -22,7 +22,7 @@
     <div class="brand"><span class="dot"></span> Chronos-Graph</div>
     <div class="tagline">
       <span class="en">Bitemporal-native graph DB for RAG &amp; agent memory</span>
-      <span class="zh">面向 RAG 与智能体记忆的双时态原生图数据库</span>
+      <span class="zh">面向 RAG 与 agent memory 的 bitemporal-native 图数据库</span>
     </div>
 
     <div class="lang-toggle" id="langToggle">
@@ -41,13 +41,13 @@
       <a href="#rest"><span class="en">REST API</span><span class="zh">REST API</span></a>
       <a href="#python"><span class="en">Python SDK</span><span class="zh">Python SDK</span></a>
       <a href="#typescript"><span class="en">TypeScript SDK</span><span class="zh">TypeScript SDK</span></a>
-      <a href="#mcp"><span class="en">MCP server</span><span class="zh">MCP 服务</span></a>
+      <a href="#mcp"><span class="en">MCP server</span><span class="zh">MCP server</span></a>
       <a href="#embedded"><span class="en">Embedded (Rust)</span><span class="zh">嵌入式 (Rust)</span></a>
     </div>
     <div class="nav-group">
       <h4><span class="en">Reference</span><span class="zh">参考</span></h4>
       <a href="#query"><span class="en">Query language</span><span class="zh">查询语言</span></a>
-      <a href="#tenancy"><span class="en">Multi-tenancy</span><span class="zh">多租户</span></a>
+      <a href="#tenancy"><span class="en">Multi-tenancy</span><span class="zh">Multi-tenancy</span></a>
       <a href="#capabilities"><span class="en">Capabilities</span><span class="zh">能力矩阵</span></a>
     </div>
     <div class="nav-group">
@@ -60,7 +60,7 @@
     <div class="hero" id="overview">
       <h1>Chronos-Graph</h1>
       <p class="lede en">A bitemporal-native graph database purpose-built for RAG and AI-agent memory. Every fact tracks <em>valid time</em> and <em>transaction time</em>, contradictions are invalidated (not deleted), and retrieval returns LLM-ready, cited context.</p>
-      <p class="lede zh">面向 RAG 与 AI 智能体记忆打造的双时态原生图数据库。每条事实同时记录<em>有效时间</em>与<em>事务时间</em>,矛盾事实被「失效」而非删除,检索直接返回带引用、可供 LLM 使用的上下文。</p>
+      <p class="lede zh">面向 RAG 与 AI-agent memory 打造的 bitemporal-native 图数据库。每条 fact 同时记录 <em>valid time</em> 与 <em>transaction time</em>,矛盾事实被 invalidate 而非删除,检索直接返回带 citation、可供 LLM 使用的上下文。</p>
       <div class="badges">
         <span class="badge">v0.0.1</span>
         <span class="badge">Rust</span>
@@ -71,18 +71,18 @@
 
     <div class="note">
       <p class="en" style="margin:0"><strong>What this engine does without an LLM:</strong> there is no built-in embedding model, so the <code>SIMILAR(...)</code> operator ranks facts with a real <strong>BM25</strong> index over their verbalized text. Everything else — bitemporal storage, atomic upsert, point-in-time queries, provenance/citations, communities, entity resolution, multi-tenancy and durability — is implemented and tested.</p>
-      <p class="zh" style="margin:0"><strong>没有 LLM 时它能做什么:</strong> 引擎不内置 embedding 模型,因此 <code>SIMILAR(...)</code> 用真实的 <strong>BM25</strong> 索引对事实文本排序。其余能力——双时态存储、原子 upsert、时间点查询、溯源/引用、社区、实体消歧、多租户与持久化——均已实现并测试。</p>
+      <p class="zh" style="margin:0"><strong>没有 LLM 时它能做什么:</strong> 引擎不内置 embedding model,因此 <code>SIMILAR(...)</code> 用真实的 <strong>BM25</strong> index 对 fact 文本排序。其余能力——bitemporal storage、atomic upsert、point-in-time query、provenance/citation、community、entity resolution、multi-tenancy 与 durability——均已实现并测试。</p>
     </div>
 
     <!-- QUICK START -->
     <section id="quickstart">
       <h2><span class="en">Quick start</span><span class="zh">快速开始</span></h2>
       <p class="en">Build the workspace and run the REST service (defaults to <code>127.0.0.1:8080</code>).</p>
-      <p class="zh">编译工作区并启动 REST 服务(默认 <code>127.0.0.1:8080</code>)。</p>
+      <p class="zh">编译 workspace 并启动 REST service(默认 <code>127.0.0.1:8080</code>)。</p>
       <div class="tabs" data-tabs>
         <div class="tab-bar">
-          <button class="tab-btn active" data-tab="qs-mem"><span class="en">In-memory</span><span class="zh">内存版</span></button>
-          <button class="tab-btn" data-tab="qs-rocks"><span class="en">Durable (RocksDB)</span><span class="zh">持久化 (RocksDB)</span></button>
+          <button class="tab-btn active" data-tab="qs-mem"><span class="en">In-memory</span><span class="zh">In-memory</span></button>
+          <button class="tab-btn" data-tab="qs-rocks"><span class="en">Durable (RocksDB)</span><span class="zh">Durable (RocksDB)</span></button>
         </div>
         <div class="tab-panel active" id="qs-mem">
 <pre><code>cargo run -p chronos-server
@@ -96,7 +96,7 @@ CHRONOS_DATA_DIR=./data cargo run -p chronos-server --features rocks</code></pre
       </div>
 
       <p class="en">Then write a fact and ask a question:</p>
-      <p class="zh">然后写入一条事实并提问:</p>
+      <p class="zh">然后写入一条 fact 并提问:</p>
       <div class="tabs" data-tabs>
         <div class="tab-bar">
           <button class="tab-btn active" data-tab="qs-curl">curl</button>
@@ -133,17 +133,17 @@ console.log(res.text);</code></pre>
       <h2><span class="en">Core concepts</span><span class="zh">核心概念</span></h2>
       <ul>
         <li class="en"><strong>Fact</strong> — a <code>subject predicate object</code> edge carrying a bitemporal span and a provenance reference (<code>doc</code>, <code>chunk</code>).</li>
-        <li class="zh"><strong>事实 (Fact)</strong> — 一条 <code>subject predicate object</code> 边,带双时态区间和溯源引用(<code>doc</code>、<code>chunk</code>)。</li>
+        <li class="zh"><strong>Fact</strong> — 一条 <code>subject predicate object</code> edge,带 bitemporal span 与 provenance reference(<code>doc</code>、<code>chunk</code>)。</li>
         <li class="en"><strong>Valid time</strong> — when the fact was true in the real world (you supply <code>valid_from</code>, in epoch milliseconds).</li>
-        <li class="zh"><strong>有效时间</strong> — 事实在现实世界中为真的起点(由你提供 <code>valid_from</code>,单位为毫秒时间戳)。</li>
+        <li class="zh"><strong>Valid time</strong> — fact 在现实世界中为真的起点(由你提供 <code>valid_from</code>,单位为 epoch milliseconds)。</li>
         <li class="en"><strong>Transaction time</strong> — when the system learned it (assigned automatically on write).</li>
-        <li class="zh"><strong>事务时间</strong> — 系统获知该事实的时刻(写入时自动赋值)。</li>
+        <li class="zh"><strong>Transaction time</strong> — 系统获知该 fact 的时刻(写入时自动赋值)。</li>
         <li class="en"><strong>Invalidation</strong> — writing a contradicting fact under the <code>unique</code> policy closes the old fact's valid span instead of deleting it, so history is preserved and queryable.</li>
-        <li class="zh"><strong>失效 (Invalidation)</strong> — 在 <code>unique</code> 策略下写入矛盾事实会关闭旧事实的有效区间而非删除,历史得以保留并可查询。</li>
+        <li class="zh"><strong>Invalidation</strong> — 在 <code>unique</code> policy 下写入矛盾 fact 会关闭旧 fact 的 valid span 而非删除,历史得以保留并可查询。</li>
         <li class="en"><strong>Citation</strong> — every retrieved line can be traced back to its source <code>doc</code>/<code>chunk</code>.</li>
-        <li class="zh"><strong>引用 (Citation)</strong> — 每条检索结果都可回溯到来源 <code>doc</code>/<code>chunk</code>。</li>
+        <li class="zh"><strong>Citation</strong> — 每条检索结果都可回溯到来源 <code>doc</code>/<code>chunk</code>。</li>
         <li class="en"><strong>Tenant</strong> — an isolation boundary; facts, retrieval, communities and resolution are all scoped to a tenant.</li>
-        <li class="zh"><strong>租户 (Tenant)</strong> — 隔离边界;事实、检索、社区与消歧都按租户隔离。</li>
+        <li class="zh"><strong>Tenant</strong> — 隔离边界;fact、retrieval、community 与 resolution 都按 tenant 隔离。</li>
       </ul>
     </section>
 
@@ -151,31 +151,31 @@ console.log(res.text);</code></pre>
     <section id="rest">
       <h2>REST API</h2>
       <p class="en">Base URL defaults to <code>http://127.0.0.1:8080</code>. All bodies are JSON. Add the header <code>X-Tenant-Id: &lt;number&gt;</code> to scope a request to a tenant (omit for the default tenant <code>0</code>).</p>
-      <p class="zh">基础地址默认 <code>http://127.0.0.1:8080</code>,请求体均为 JSON。加请求头 <code>X-Tenant-Id: &lt;数字&gt;</code> 可将请求限定到某租户(省略则为默认租户 <code>0</code>)。</p>
+      <p class="zh">Base URL 默认 <code>http://127.0.0.1:8080</code>,请求体均为 JSON。加 header <code>X-Tenant-Id: &lt;number&gt;</code> 可将请求限定到某 tenant(省略则为 default tenant <code>0</code>)。</p>
 
       <div class="endpoint"><span class="method get">GET</span><span class="path">/healthz</span></div>
       <p class="muted en">Liveness probe. Returns <code>200 ok</code>.</p>
-      <p class="muted zh">存活探针,返回 <code>200 ok</code>。</p>
+      <p class="muted zh">Liveness probe,返回 <code>200 ok</code>。</p>
 
       <div class="endpoint"><span class="method post">POST</span><span class="path">/v1/memory</span></div>
       <p class="en">Ingest a fact (atomic <code>UPSERT_FACT</code>). Returns the new edge id.</p>
-      <p class="zh">写入一条事实(原子 <code>UPSERT_FACT</code>),返回新边 id。</p>
+      <p class="zh">写入一条 fact(atomic <code>UPSERT_FACT</code>),返回新的 edge id。</p>
       <table>
         <tr><th><span class="en">Field</span><span class="zh">字段</span></th><th><span class="en">Type</span><span class="zh">类型</span></th><th><span class="en">Notes</span><span class="zh">说明</span></th></tr>
-        <tr><td><code>subject</code></td><td>string</td><td><span class="en">entity name (interned)</span><span class="zh">实体名(自动驻留)</span></td></tr>
-        <tr><td><code>predicate</code></td><td>string</td><td><span class="en">relationship name</span><span class="zh">关系名</span></td></tr>
-        <tr><td><code>object</code></td><td>string</td><td><span class="en">entity name (interned)</span><span class="zh">实体名(自动驻留)</span></td></tr>
-        <tr><td><code>valid_from</code></td><td>integer</td><td><span class="en">epoch ms (real-world validity start)</span><span class="zh">毫秒时间戳(现实有效起点)</span></td></tr>
-        <tr><td><code>doc</code></td><td>integer</td><td><span class="en">provenance document id</span><span class="zh">溯源文档 id</span></td></tr>
-        <tr><td><code>chunk</code></td><td>integer</td><td><span class="en">provenance chunk id</span><span class="zh">溯源分块 id</span></td></tr>
-        <tr><td><code>policy</code></td><td>string?</td><td><span class="en"><code>unique</code> (default, supersede) or <code>append</code></span><span class="zh"><code>unique</code>(默认,取代旧事实)或 <code>append</code></span></td></tr>
+        <tr><td><code>subject</code></td><td>string</td><td><span class="en">entity name (interned)</span><span class="zh">entity name(interned)</span></td></tr>
+        <tr><td><code>predicate</code></td><td>string</td><td><span class="en">relationship name</span><span class="zh">relationship name</span></td></tr>
+        <tr><td><code>object</code></td><td>string</td><td><span class="en">entity name (interned)</span><span class="zh">entity name(interned)</span></td></tr>
+        <tr><td><code>valid_from</code></td><td>integer</td><td><span class="en">epoch ms (real-world validity start)</span><span class="zh">epoch ms(real-world validity 起点)</span></td></tr>
+        <tr><td><code>doc</code></td><td>integer</td><td><span class="en">provenance document id</span><span class="zh">provenance document id</span></td></tr>
+        <tr><td><code>chunk</code></td><td>integer</td><td><span class="en">provenance chunk id</span><span class="zh">provenance chunk id</span></td></tr>
+        <tr><td><code>policy</code></td><td>string?</td><td><span class="en"><code>unique</code> (default, supersede) or <code>append</code></span><span class="zh"><code>unique</code>(default,supersede)或 <code>append</code></span></td></tr>
       </table>
 <div class="code"><pre><code>// response
 { "edge_id": 1 }</code></pre></div>
 
       <div class="endpoint"><span class="method post">POST</span><span class="path">/v1/search</span></div>
       <p class="en">Run an extended-Cypher query and get cited, point-in-time context.</p>
-      <p class="zh">执行扩展 Cypher 查询,返回带引用、时间点正确的上下文。</p>
+      <p class="zh">执行 extended-Cypher query,返回带 citation、point-in-time 正确的 context。</p>
 <div class="code"><pre><code>// request
 { "query": "MATCH (n) WHERE SIMILAR(n,\"Alice\") AS OF VALID TIME 1500 RETURN CONTEXT(cite = true)" }
 
@@ -187,7 +187,7 @@ console.log(res.text);</code></pre>
 
       <div class="endpoint"><span class="method get">GET</span><span class="path">/v1/communities</span></div>
       <p class="en">Level-0 (connected-component) communities with templated, current-fact summaries — the "global" topic view.</p>
-      <p class="zh">level-0(连通分量)社区及其基于当前事实的模板化摘要——即「全局」主题视图。</p>
+      <p class="zh">level-0(connected-component)community 及其基于 current fact 的模板化 summary——即「global」主题视图。</p>
 <div class="code"><pre><code>// response
 { "communities": [
   { "id": 1, "members": ["Alice","Beijing"], "summary": "Community of 2 entities (Alice, Beijing). Current facts: Alice lives_in Beijing" }
@@ -195,7 +195,7 @@ console.log(res.text);</code></pre>
 
       <div class="endpoint"><span class="method post">POST</span><span class="path">/v1/resolve</span></div>
       <p class="en">Entity resolution: detect surface variants and merge them. Set <code>dry_run: true</code> to preview candidates without merging.</p>
-      <p class="zh">实体消歧:检测同一实体的不同写法并合并。设 <code>dry_run: true</code> 仅预览候选而不合并。</p>
+      <p class="zh">Entity resolution:检测同一 entity 的不同写法并合并。设 <code>dry_run: true</code> 仅预览 candidate 而不合并。</p>
 <div class="code"><pre><code>// request
 { "threshold": 0.9, "dry_run": false }
 
@@ -207,19 +207,19 @@ console.log(res.text);</code></pre>
 
       <h3><span class="en">Errors</span><span class="zh">错误</span></h3>
       <p class="en">Malformed queries return <code>400</code>; unknown lookups return <code>404</code>; other engine errors return <code>500</code>. The body is <code>{ "error": "..." }</code>.</p>
-      <p class="zh">查询语法错误返回 <code>400</code>;查不到返回 <code>404</code>;其他引擎错误返回 <code>500</code>。响应体为 <code>{ "error": "..." }</code>。</p>
+      <p class="zh">query 语法错误返回 <code>400</code>;查不到返回 <code>404</code>;其他 engine error 返回 <code>500</code>。响应体为 <code>{ "error": "..." }</code>。</p>
     </section>
 
     <!-- PYTHON -->
     <section id="python">
       <h2>Python SDK</h2>
       <p class="en">Single file, standard-library only (<code>urllib</code>), no dependencies. Copy <code>sdks/python/chronos_graph.py</code> into your project.</p>
-      <p class="zh">单文件、仅依赖标准库(<code>urllib</code>),无第三方依赖。把 <code>sdks/python/chronos_graph.py</code> 拷进你的项目即可。</p>
+      <p class="zh">单文件、仅依赖 standard library(<code>urllib</code>),无第三方依赖。把 <code>sdks/python/chronos_graph.py</code> 拷进你的项目即可。</p>
       <div class="code"><pre><code>from chronos_graph import ChronosClient, ChronosError
 
 client = ChronosClient("http://127.0.0.1:8080")
 
-# Ingest (returns the new edge id) / 写入(返回新边 id)
+# Ingest (returns the new edge id) / 写入(返回新的 edge id)
 edge = client.add_memory(
     "Alice", "lives_in", "Shanghai",
     valid_from=2000, doc=20, chunk=1,
@@ -237,7 +237,7 @@ print(result["citations"])</code></pre></div>
       </table>
       <div class="note">
         <p class="en" style="margin:0"><strong>Coverage:</strong> the SDK wraps <code>/v1/memory</code> and <code>/v1/search</code>. For <code>/v1/communities</code>, <code>/v1/resolve</code> and the <code>X-Tenant-Id</code> header, call the REST API directly for now.</p>
-        <p class="zh" style="margin:0"><strong>覆盖范围:</strong> SDK 目前封装 <code>/v1/memory</code> 与 <code>/v1/search</code>。<code>/v1/communities</code>、<code>/v1/resolve</code> 及 <code>X-Tenant-Id</code> 头暂请直接调用 REST。</p>
+        <p class="zh" style="margin:0"><strong>Coverage:</strong> SDK 目前封装 <code>/v1/memory</code> 与 <code>/v1/search</code>。<code>/v1/communities</code>、<code>/v1/resolve</code> 及 <code>X-Tenant-Id</code> header 暂请直接调用 REST API。</p>
       </div>
     </section>
 
@@ -268,23 +268,23 @@ console.log(res.text, res.citations);</code></pre></div>
 
     <!-- MCP -->
     <section id="mcp">
-      <h2><span class="en">MCP server</span><span class="zh">MCP 服务</span></h2>
+      <h2><span class="en">MCP server</span><span class="zh">MCP server</span></h2>
       <p class="en">A built-in Model Context Protocol server (JSON-RPC 2.0 over stdio) exposes the engine as agent-callable tools, completing multi-hop retrieval server-side.</p>
-      <p class="zh">内置 MCP(Model Context Protocol)服务,基于 stdio 上的 JSON-RPC 2.0,把引擎暴露为智能体可调用的工具,并在服务端完成多跳检索。</p>
+      <p class="zh">内置 MCP(Model Context Protocol)server,基于 stdio 上的 JSON-RPC 2.0,把引擎暴露为 agent 可调用的 tool,并在 server 端完成 multi-hop retrieval。</p>
       <div class="code"><pre><code>cargo run -p chronos-mcp     # JSON-RPC 2.0 on stdin/stdout</code></pre></div>
       <p class="en">Register it with an MCP-capable client:</p>
-      <p class="zh">在支持 MCP 的客户端中注册:</p>
+      <p class="zh">在支持 MCP 的 client 中注册:</p>
       <div class="code"><pre><code>{
   "mcpServers": {
     "chronos": { "command": "/path/to/target/debug/chronos-mcp" }
   }
 }</code></pre></div>
       <table>
-        <tr><th><span class="en">Tool</span><span class="zh">工具</span></th><th><span class="en">Purpose</span><span class="zh">用途</span></th></tr>
-        <tr><td><code>add_memory</code></td><td><span class="en">ingest a fact</span><span class="zh">写入一条事实</span></td></tr>
-        <tr><td><code>search_memory</code></td><td><span class="en">cited, point-in-time context for a query</span><span class="zh">返回带引用、时间点正确的上下文</span></td></tr>
-        <tr><td><code>list_communities</code></td><td><span class="en">level-0 community summaries</span><span class="zh">level-0 社区摘要</span></td></tr>
-        <tr><td><code>resolve_entities</code></td><td><span class="en">merge surface-variant entities</span><span class="zh">合并同一实体的不同写法</span></td></tr>
+        <tr><th><span class="en">Tool</span><span class="zh">Tool</span></th><th><span class="en">Purpose</span><span class="zh">用途</span></th></tr>
+        <tr><td><code>add_memory</code></td><td><span class="en">ingest a fact</span><span class="zh">写入一条 fact</span></td></tr>
+        <tr><td><code>search_memory</code></td><td><span class="en">cited, point-in-time context for a query</span><span class="zh">返回带 citation、point-in-time 正确的 context</span></td></tr>
+        <tr><td><code>list_communities</code></td><td><span class="en">level-0 community summaries</span><span class="zh">level-0 community summary</span></td></tr>
+        <tr><td><code>resolve_entities</code></td><td><span class="en">merge surface-variant entities</span><span class="zh">合并同一 entity 的不同写法</span></td></tr>
       </table>
     </section>
 
@@ -292,7 +292,7 @@ console.log(res.text, res.citations);</code></pre></div>
     <section id="embedded">
       <h2><span class="en">Embedded (Rust)</span><span class="zh">嵌入式 (Rust)</span></h2>
       <p class="en">Run the same kernel in-process for single-node or edge deployments.</p>
-      <p class="zh">在进程内运行同一内核,适合单机或边缘部署。</p>
+      <p class="zh">在进程内运行同一 kernel,适合单机或 edge 部署。</p>
       <div class="code"><pre><code>use chronos_embedded::{Chronos, MemoryRetriever};
 use chronos_common::config::EngineConfig;
 
@@ -313,15 +313,15 @@ println!("{}", block.text);</code></pre></div>
     <section id="query">
       <h2><span class="en">Query language</span><span class="zh">查询语言</span></h2>
       <p class="en">An OpenCypher subset extended with RAG/temporal operators.</p>
-      <p class="zh">在 OpenCypher 子集基础上扩展了 RAG / 时态算子。</p>
+      <p class="zh">在 OpenCypher subset 基础上扩展了 RAG / temporal operator。</p>
       <table>
         <tr><th><span class="en">Clause</span><span class="zh">子句</span></th><th><span class="en">Meaning</span><span class="zh">含义</span></th></tr>
-        <tr><td><code>MATCH (n)</code></td><td><span class="en">bind nodes (entry point)</span><span class="zh">绑定节点(入口)</span></td></tr>
-        <tr><td><code>WHERE SIMILAR(n, "text")</code></td><td><span class="en">BM25 relevance ranking over fact text</span><span class="zh">对事实文本做 BM25 相关性排序</span></td></tr>
-        <tr><td><code>AS OF VALID TIME &lt;ms&gt;</code></td><td><span class="en">point-in-time on the valid timeline</span><span class="zh">有效时间线上的时间点</span></td></tr>
-        <tr><td><code>AS OF TRANSACTION TIME &lt;ms&gt;</code></td><td><span class="en">point-in-time on the transaction timeline</span><span class="zh">事务时间线上的时间点</span></td></tr>
-        <tr><td><code>TRAVERSE SEMANTIC(budget = N tokens)</code></td><td><span class="en">token-budgeted expansion</span><span class="zh">按 token 预算扩展</span></td></tr>
-        <tr><td><code>RETURN CONTEXT(cite = true|false)</code></td><td><span class="en">graph-to-text, optionally with citations</span><span class="zh">图转文本,可选附带引用</span></td></tr>
+        <tr><td><code>MATCH (n)</code></td><td><span class="en">bind nodes (entry point)</span><span class="zh">绑定 node(入口)</span></td></tr>
+        <tr><td><code>WHERE SIMILAR(n, "text")</code></td><td><span class="en">BM25 relevance ranking over fact text</span><span class="zh">对 fact 文本做 BM25 relevance ranking</span></td></tr>
+        <tr><td><code>AS OF VALID TIME &lt;ms&gt;</code></td><td><span class="en">point-in-time on the valid timeline</span><span class="zh">valid timeline 上的 point-in-time</span></td></tr>
+        <tr><td><code>AS OF TRANSACTION TIME &lt;ms&gt;</code></td><td><span class="en">point-in-time on the transaction timeline</span><span class="zh">transaction timeline 上的 point-in-time</span></td></tr>
+        <tr><td><code>TRAVERSE SEMANTIC(budget = N tokens)</code></td><td><span class="en">token-budgeted expansion</span><span class="zh">按 token budget 扩展</span></td></tr>
+        <tr><td><code>RETURN CONTEXT(cite = true|false)</code></td><td><span class="en">graph-to-text, optionally with citations</span><span class="zh">graph-to-text,可选附带 citation</span></td></tr>
       </table>
       <div class="code"><pre><code>MATCH (n) WHERE SIMILAR(n, "Alice lives")
 AS OF VALID TIME 1500
@@ -331,9 +331,9 @@ RETURN CONTEXT(cite = true)</code></pre></div>
 
     <!-- TENANCY -->
     <section id="tenancy">
-      <h2><span class="en">Multi-tenancy</span><span class="zh">多租户</span></h2>
+      <h2><span class="en">Multi-tenancy</span><span class="zh">Multi-tenancy</span></h2>
       <p class="en">Every fact carries a <code>TenantId</code>. The tenant filter is pushed into the scan, so a tenant-scoped request can never observe another tenant's facts, and contradiction detection never crosses the boundary.</p>
-      <p class="zh">每条事实都带 <code>TenantId</code>。租户过滤被下推进扫描,因此限定租户的请求绝不会看到其他租户的事实,矛盾检测也不会跨租户。</p>
+      <p class="zh">每条 fact 都带 <code>TenantId</code>。tenant filter 被下推进 scan,因此限定 tenant 的请求绝不会看到其他 tenant 的 fact,contradiction detection 也不会跨 tenant。</p>
       <div class="code"><pre><code>curl -XPOST localhost:8080/v1/memory \
   -H 'content-type: application/json' -H 'X-Tenant-Id: 42' \
   -d '{"subject":"Alice","predicate":"lives_in","object":"Tokyo","valid_from":1000,"doc":1,"chunk":1}'
@@ -342,7 +342,7 @@ curl -XPOST localhost:8080/v1/search \
   -H 'content-type: application/json' -H 'X-Tenant-Id: 42' \
   -d '{"query":"MATCH (n) WHERE SIMILAR(n,\"Alice\") RETURN CONTEXT(cite = true)"}'</code></pre></div>
       <p class="muted en">Omitting <code>X-Tenant-Id</code> targets the default tenant (<code>0</code>). The same header works on <code>/v1/communities</code> and <code>/v1/resolve</code>.</p>
-      <p class="muted zh">省略 <code>X-Tenant-Id</code> 即默认租户(<code>0</code>)。该头同样适用于 <code>/v1/communities</code> 与 <code>/v1/resolve</code>。</p>
+      <p class="muted zh">省略 <code>X-Tenant-Id</code> 即 default tenant(<code>0</code>)。该 header 同样适用于 <code>/v1/communities</code> 与 <code>/v1/resolve</code>。</p>
     </section>
 
     <!-- CAPABILITIES -->
@@ -350,22 +350,22 @@ curl -XPOST localhost:8080/v1/search \
       <h2><span class="en">Capabilities</span><span class="zh">能力矩阵</span></h2>
       <table>
         <tr><th><span class="en">Capability</span><span class="zh">能力</span></th><th><span class="en">Status</span><span class="zh">状态</span></th></tr>
-        <tr><td><span class="en">Bitemporal storage (valid + transaction time)</span><span class="zh">双时态存储(有效 + 事务时间)</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">MVCC in-memory engine</span><span class="zh">MVCC 内存引擎</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">Durable RocksDB engine + full recovery</span><span class="zh">持久化 RocksDB 引擎 + 完整恢复</span></td><td class="ok"><span class="en">implemented (<code>rocks</code>)</span><span class="zh">已实现(<code>rocks</code>)</span></td></tr>
-        <tr><td><span class="en">Atomic <code>UPSERT_FACT</code> + non-lossy invalidation</span><span class="zh">原子 <code>UPSERT_FACT</code> + 无损失效</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">Point-in-time <code>AS OF</code></span><span class="zh">时间点 <code>AS OF</code></span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">BM25 full-text (wired into <code>SIMILAR</code>)</span><span class="zh">BM25 全文(接入 <code>SIMILAR</code>)</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">Brute-force cosine vector index</span><span class="zh">暴力余弦向量索引</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">Incremental communities</span><span class="zh">增量社区</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">Entity resolution (detect + transactional merge)</span><span class="zh">实体消歧(检测 + 事务合并)</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">Multi-tenancy / tenant push-down</span><span class="zh">多租户 / 租户下推</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Bitemporal storage (valid + transaction time)</span><span class="zh">Bitemporal storage(valid + transaction time)</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">MVCC in-memory engine</span><span class="zh">MVCC in-memory engine</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Durable RocksDB engine + full recovery</span><span class="zh">Durable RocksDB engine + 完整 recovery</span></td><td class="ok"><span class="en">implemented (<code>rocks</code>)</span><span class="zh">已实现(<code>rocks</code>)</span></td></tr>
+        <tr><td><span class="en">Atomic <code>UPSERT_FACT</code> + non-lossy invalidation</span><span class="zh">Atomic <code>UPSERT_FACT</code> + non-lossy invalidation</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Point-in-time <code>AS OF</code></span><span class="zh">Point-in-time <code>AS OF</code></span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">BM25 full-text (wired into <code>SIMILAR</code>)</span><span class="zh">BM25 full-text(接入 <code>SIMILAR</code>)</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Brute-force cosine vector index</span><span class="zh">Brute-force cosine vector index</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Incremental communities</span><span class="zh">Incremental communities</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Entity resolution (detect + transactional merge)</span><span class="zh">Entity resolution(detect + transactional merge)</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
+        <tr><td><span class="en">Multi-tenancy / tenant push-down</span><span class="zh">Multi-tenancy / tenant push-down</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
         <tr><td><span class="en">REST · MCP · Python/TS SDKs</span><span class="zh">REST · MCP · Python/TS SDK</span></td><td class="ok"><span class="en">implemented</span><span class="zh">已实现</span></td></tr>
-        <tr><td><span class="en">HNSW approximate vector index</span><span class="zh">HNSW 近似向量索引</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
-        <tr><td><span class="en">tantivy-backed full-text</span><span class="zh">tantivy 全文后端</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
-        <tr><td><span class="en">Hierarchical (Leiden) communities + LLM summaries</span><span class="zh">层级化(Leiden)社区 + LLM 摘要</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
-        <tr><td><span class="en">Full historical MVCC on RocksDB</span><span class="zh">RocksDB 完整历史 MVCC</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
-        <tr><td><span class="en">gRPC service</span><span class="zh">gRPC 服务</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
+        <tr><td><span class="en">HNSW approximate vector index</span><span class="zh">HNSW approximate vector index</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
+        <tr><td><span class="en">tantivy-backed full-text</span><span class="zh">tantivy-backed full-text</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
+        <tr><td><span class="en">Hierarchical (Leiden) communities + LLM summaries</span><span class="zh">Hierarchical (Leiden) communities + LLM summaries</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
+        <tr><td><span class="en">Full historical MVCC on RocksDB</span><span class="zh">RocksDB 上完整历史 MVCC</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
+        <tr><td><span class="en">gRPC service</span><span class="zh">gRPC service</span></td><td class="plan"><span class="en">planned</span><span class="zh">规划中</span></td></tr>
       </table>
     </section>
 
