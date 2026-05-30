@@ -190,6 +190,7 @@ name = "chronos-embedded"
 version = "0.0.1"
 dependencies = [
  "chronos-common",
+ "chronos-community",
  "chronos-graph-model",
  "chronos-provenance",
  "chronos-query",

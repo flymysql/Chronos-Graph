@@ -13,6 +13,7 @@ use chronos_common::{
     AsOf, BitemporalSpan, ChunkId, DocId, EdgeId, NodeId, PredicateId, ProvenanceRef, Result,
     Timestamp,
 };
+use chronos_community::InMemoryCommunityIndex;
 use chronos_storage::{
     InMemoryIntervalIndex, IntervalIndex, KeyRange, MemoryEngine, StorageEngine,
 };
@@ -30,9 +31,18 @@ pub struct FactStore {
     predicates: RwLock<HashMap<PredicateId, String>>,
     node_ids: RwLock<HashMap<String, NodeId>>,
     predicate_ids: RwLock<HashMap<String, PredicateId>>,
+    communities: RwLock<InMemoryCommunityIndex>,
     next_edge: AtomicU64,
     next_node: AtomicU64,
     next_predicate: AtomicU64,
+}
+
+/// A community with resolved member names and a templated summary.
+#[derive(Debug, Clone)]
+pub struct CommunitySummary {
+    pub id: u64,
+    pub members: Vec<String>,
+    pub summary: String,
 }
 
 impl Default for FactStore {
@@ -51,10 +61,51 @@ impl FactStore {
             predicates: RwLock::new(HashMap::new()),
             node_ids: RwLock::new(HashMap::new()),
             predicate_ids: RwLock::new(HashMap::new()),
+            communities: RwLock::new(InMemoryCommunityIndex::new()),
             next_edge: AtomicU64::new(1),
             next_node: AtomicU64::new(1),
             next_predicate: AtomicU64::new(1),
         }
+    }
+
+    /// Level-0 communities (connected components) with resolved member names
+    /// and a templated summary built from the facts currently valid among
+    /// their members. This is the "global" view used to answer topic-level
+    /// questions.
+    pub fn community_summaries(&self) -> Result<Vec<CommunitySummary>> {
+        let comms = self
+            .communities
+            .read()
+            .expect("communities poisoned")
+            .communities();
+        let current = self.as_of(AsOf::now())?.facts;
+        let mut out = Vec::with_capacity(comms.len());
+        for c in comms {
+            let member_set: std::collections::BTreeSet<NodeId> =
+                c.members.iter().copied().collect();
+            let member_names: Vec<String> = c.members.iter().map(|n| self.node_name(*n)).collect();
+            let facts: Vec<String> = current
+                .iter()
+                .filter(|f| member_set.contains(&f.subject))
+                .map(|f| self.verbalize(f))
+                .collect();
+            let summary = format!(
+                "Community of {} entities ({}). Current facts: {}",
+                member_names.len(),
+                member_names.join(", "),
+                if facts.is_empty() {
+                    "none".to_string()
+                } else {
+                    facts.join("; ")
+                }
+            );
+            out.push(CommunitySummary {
+                id: c.id,
+                members: member_names,
+                summary,
+            });
+        }
+        Ok(out)
     }
 
     /// Resolve a node by name, creating and registering it on first use.
@@ -239,6 +290,11 @@ impl FactStore {
             .write()
             .expect("prov poisoned")
             .insert(new_fact.id, new_fact.provenance);
+        // Incrementally maintain communities: this fact bridges its endpoints.
+        self.communities
+            .write()
+            .expect("communities poisoned")
+            .add_edge(new_fact.subject, new_fact.object);
 
         Ok(UpsertOutcome {
             written: new_fact,

@@ -54,6 +54,11 @@ fn tool_descriptors() -> Value {
                 "properties": { "query": {"type": "string"} },
                 "required": ["query"]
             }
+        },
+        {
+            "name": "list_communities",
+            "description": "List level-0 entity communities with templated summaries (global view).",
+            "inputSchema": { "type": "object", "properties": {} }
         }
     ])
 }
@@ -89,6 +94,10 @@ fn handle_tool_call(state: &McpState, id: Value, req: &Value) -> Value {
             Err(e) => err(id, -32602, &e),
         },
         "search_memory" => match tool_search_memory(state, &args) {
+            Ok(text) => ok(id, tool_text(&text)),
+            Err(e) => err(id, -32602, &e),
+        },
+        "list_communities" => match tool_list_communities(state) {
             Ok(text) => ok(id, tool_text(&text)),
             Err(e) => err(id, -32602, &e),
         },
@@ -128,6 +137,21 @@ fn tool_search_memory(state: &McpState, args: &Value) -> Result<String, String> 
     let retriever = MemoryRetriever::new(&state.store);
     let block = retriever.answer(query).map_err(|e| e.to_string())?;
     Ok(block.text)
+}
+
+fn tool_list_communities(state: &McpState) -> Result<String, String> {
+    let comms = state
+        .store
+        .community_summaries()
+        .map_err(|e| e.to_string())?;
+    if comms.is_empty() {
+        return Ok("no communities yet".to_string());
+    }
+    Ok(comms
+        .into_iter()
+        .map(|c| c.summary)
+        .collect::<Vec<_>>()
+        .join("\n"))
 }
 
 /// MCP tool results carry a `content` array of typed parts.
@@ -186,6 +210,7 @@ mod tests {
             .collect();
         assert!(names.contains(&"add_memory"));
         assert!(names.contains(&"search_memory"));
+        assert!(names.contains(&"list_communities"));
     }
 
     #[test]
@@ -210,6 +235,29 @@ mod tests {
         let resp = handle_request(&s, &req);
         let text = resp["result"]["content"][0]["text"].as_str().unwrap();
         assert!(text.contains("Shanghai"), "got {text}");
+    }
+
+    #[test]
+    fn list_communities_via_tools() {
+        let s = state();
+        let add = json!({
+            "jsonrpc":"2.0","id":1,"method":"tools/call",
+            "params": {"name":"add_memory","arguments":{
+                "subject":"Alice","predicate":"lives_in","object":"Beijing",
+                "valid_from":1000,"doc":10,"chunk":1}}
+        });
+        handle_request(&s, &add);
+
+        let req = json!({
+            "jsonrpc":"2.0","id":2,"method":"tools/call",
+            "params": {"name":"list_communities","arguments":{}}
+        });
+        let resp = handle_request(&s, &req);
+        let text = resp["result"]["content"][0]["text"].as_str().unwrap();
+        assert!(
+            text.contains("Alice") && text.contains("Beijing"),
+            "got {text}"
+        );
     }
 
     #[test]

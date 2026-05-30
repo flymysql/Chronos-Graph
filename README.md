@@ -18,8 +18,9 @@ pushes these capabilities **down into the database engine itself**:
   context, not rows.
 - **Agent-native** — built-in MCP server for write-memory / search / multi-hop.
 
-> Status: **M1 in progress (v0.0.1)**. Beyond the workspace skeleton, the
-> bitemporal core is now functional and tested:
+> Status: **M1–M4 functional (v0.0.1)**. Beyond the workspace skeleton, the
+> bitemporal core, query layer, service layer and incremental communities are
+> functional and tested:
 >
 > - `chronos-storage`: a complete in-memory **MVCC** `StorageEngine` (snapshot
 >   isolation, read-your-writes, atomic commit) plus a durable **RocksDB**
@@ -35,9 +36,16 @@ pushes these capabilities **down into the database engine itself**:
 > - `MemoryRetriever` (M2): wires `FactStore` into the query layer and provides
 >   an end-to-end **"question -> cited, point-in-time context"** pipeline.
 > - `chronos-server` (M3): a runnable **HTTP/REST** service (axum/tokio) with
->   `POST /v1/memory` and `POST /v1/search`, integration-tested in-process.
+>   `POST /v1/memory`, `POST /v1/search` and `GET /v1/communities`,
+>   integration-tested in-process.
 > - `chronos-mcp` (M3): a built-in **MCP server** (JSON-RPC over stdio) exposing
->   `add_memory` / `search_memory` tools to agents.
+>   `add_memory` / `search_memory` / `list_communities` tools to agents.
+> - `chronos-community` (M4): **incrementally maintained communities** — a
+>   union-find unions each fact's endpoints in near-constant time, so a new fact
+>   only touches the two affected components instead of forcing a full rebuild
+>   (the cost advantage over batch GraphRAG). Level-0 (connected-component)
+>   communities surface templated, current-fact summaries for global queries;
+>   hierarchical Leiden roll-ups are future work.
 > - `sdks/`: dependency-free **Python** and **TypeScript** REST clients.
 >
 > ```cypher
@@ -70,7 +78,7 @@ crates/
   chronos-temporal     bitemporal core: validity, invalidation, as-of
   chronos-provenance   triple<->chunk<->document links + source invalidation
   chronos-query        query language + planner + optimizer + executors
-  chronos-community    [Phase 2] Leiden + incremental community views
+  chronos-community    incremental connected-component communities (Leiden roll-ups: planned)
   chronos-resolution   [Phase 2] embedding-based entity resolution
   chronos-server       gRPC/HTTP service, sessions, ACL, multi-tenancy
   chronos-mcp          built-in MCP server (agent tools)

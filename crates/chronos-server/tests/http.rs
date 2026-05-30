@@ -119,6 +119,51 @@ async fn point_in_time_search_over_http() {
 }
 
 #[tokio::test]
+async fn communities_group_connected_entities() {
+    let app = app();
+    // Two disjoint clusters: {Alice, Beijing} and {Bob, Tokyo}.
+    for (s, o, doc) in [("Alice", "Beijing", 10), ("Bob", "Tokyo", 20)] {
+        post_json(
+            app.clone(),
+            "/v1/memory",
+            serde_json::json!({
+                "subject": s, "predicate": "lives_in", "object": o,
+                "valid_from": 1000, "doc": doc, "chunk": 1
+            }),
+        )
+        .await;
+    }
+
+    let resp = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/communities")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let comms = body["communities"].as_array().unwrap();
+    assert_eq!(comms.len(), 2, "got: {body}");
+    // Each community's summary mentions its members and current facts.
+    let summaries: Vec<&str> = comms
+        .iter()
+        .map(|c| c["summary"].as_str().unwrap())
+        .collect();
+    assert!(summaries
+        .iter()
+        .any(|s| s.contains("Alice") && s.contains("Beijing")));
+    assert!(summaries
+        .iter()
+        .any(|s| s.contains("Bob") && s.contains("Tokyo")));
+}
+
+#[tokio::test]
 async fn bad_query_is_400() {
     let (status, _) = post_json(
         app(),

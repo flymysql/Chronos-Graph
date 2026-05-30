@@ -7,6 +7,7 @@
 //! - `GET  /healthz`     -> liveness
 //! - `POST /v1/memory`   -> ingest a fact (UPSERT_FACT)
 //! - `POST /v1/search`   -> question -> cited, point-in-time context
+//! - `GET  /v1/communities` -> level-0 community summaries (global view)
 
 pub mod acl;
 pub mod session;
@@ -42,6 +43,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/healthz", get(healthz))
         .route("/v1/memory", post(add_memory))
         .route("/v1/search", post(search))
+        .route("/v1/communities", get(communities))
         .with_state(state)
 }
 
@@ -130,6 +132,32 @@ async fn search(
                 doc: c.source.doc.raw(),
                 chunk: c.source.chunk.raw(),
                 snippet: c.snippet,
+            })
+            .collect(),
+    }))
+}
+
+#[derive(Debug, Serialize)]
+struct CommunityJson {
+    id: u64,
+    members: Vec<String>,
+    summary: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CommunitiesResp {
+    communities: Vec<CommunityJson>,
+}
+
+async fn communities(State(state): State<AppState>) -> Result<Json<CommunitiesResp>, ApiError> {
+    let comms = state.store.community_summaries()?;
+    Ok(Json(CommunitiesResp {
+        communities: comms
+            .into_iter()
+            .map(|c| CommunityJson {
+                id: c.id,
+                members: c.members,
+                summary: c.summary,
             })
             .collect(),
     }))
