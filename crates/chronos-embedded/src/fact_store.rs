@@ -14,6 +14,7 @@ use chronos_common::{
     TenantId, Timestamp,
 };
 use chronos_community::InMemoryCommunityIndex;
+use chronos_index::Bm25Index;
 use chronos_resolution::LexicalBlocker;
 use chronos_storage::{
     InMemoryIntervalIndex, IntervalIndex, KeyRange, MemoryEngine, StorageEngine,
@@ -36,6 +37,9 @@ pub struct FactStore {
     tenants: RwLock<HashMap<EdgeId, TenantId>>,
     /// Per-tenant community indexes (communities never span tenants).
     communities: RwLock<HashMap<TenantId, InMemoryCommunityIndex>>,
+    /// BM25 full-text index over each fact's verbalized text, keyed by edge id.
+    /// Powers `SIMILAR(...)` ranking without an embedding model.
+    fulltext: RwLock<Bm25Index<EdgeId>>,
     next_edge: AtomicU64,
     next_node: AtomicU64,
     next_predicate: AtomicU64,
@@ -67,6 +71,7 @@ impl FactStore {
             predicate_ids: RwLock::new(HashMap::new()),
             tenants: RwLock::new(HashMap::new()),
             communities: RwLock::new(HashMap::new()),
+            fulltext: RwLock::new(Bm25Index::new()),
             next_edge: AtomicU64::new(1),
             next_node: AtomicU64::new(1),
             next_predicate: AtomicU64::new(1),
@@ -204,6 +209,18 @@ impl FactStore {
             .get(&id)
             .cloned()
             .unwrap_or_else(|| format!("rel#{}", id.raw()))
+    }
+
+    /// BM25 relevance scores for `query` over all indexed facts, keyed by edge
+    /// id. Callers intersect this with a tenant/time-filtered fact set, so the
+    /// index needs no tenant awareness of its own.
+    pub fn bm25_scores(&self, query: &str) -> HashMap<EdgeId, f32> {
+        self.fulltext
+            .read()
+            .expect("fulltext poisoned")
+            .search(query, usize::MAX)
+            .into_iter()
+            .collect()
     }
 
     /// Render a fact as natural-language-ish text: `subject predicate object`.
@@ -347,6 +364,12 @@ impl FactStore {
             .entry(tenant)
             .or_default()
             .add_edge(new_fact.subject, new_fact.object);
+        // Index the fact's verbalized text for BM25 `SIMILAR` ranking.
+        let text = self.verbalize(&new_fact);
+        self.fulltext
+            .write()
+            .expect("fulltext poisoned")
+            .add(new_fact.id, &text);
 
         Ok(UpsertOutcome {
             written: new_fact,
@@ -542,10 +565,20 @@ impl FactStore {
                 // Exact duplicate created by the merge: drop this version.
                 self.engine.delete(&mut txn, fact_key(fact.id))?;
                 self.index.write().expect("index poisoned").remove(fact.id);
+                self.fulltext
+                    .write()
+                    .expect("fulltext poisoned")
+                    .remove(&fact.id);
                 continue;
             }
             self.engine
                 .put(&mut txn, fact_key(fact.id), encode_fact(&fact))?;
+            // The verbalization changed (subject/object renamed): re-index.
+            let text = self.verbalize(&fact);
+            self.fulltext
+                .write()
+                .expect("fulltext poisoned")
+                .add(fact.id, &text);
             rewritten += 1;
         }
         self.engine.commit(txn)?;

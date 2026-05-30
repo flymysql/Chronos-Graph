@@ -29,6 +29,11 @@ pushes these capabilities **down into the database engine itself**:
 >   **`UPSERT_FACT`** operator (contradiction detection + valid-time
 >   supersession, non-lossy) and **point-in-time `as_of`** queries over both
 >   timelines, verified with property-based tests.
+> - `chronos-index` (M5): real in-memory secondary indexes — **Okapi BM25**
+>   (generic over key type, used to rank `SIMILAR(...)` over fact text) and an
+>   exact **brute-force cosine vector index** (the reference an HNSW backend
+>   will be validated against). The retriever now ranks with BM25 instead of
+>   ad-hoc substring matching.
 > - `chronos-query` (M2): a real lexer + recursive-descent parser for the
 >   extended Cypher subset (`AS OF [VALID|TRANSACTION] TIME`, `SIMILAR(...)`,
 >   `TRAVERSE SEMANTIC(...)`, `RETURN CONTEXT(cite=...)`), plus
@@ -85,7 +90,7 @@ crates/
   chronos-common       shared types: ids, time, bitemporal span, errors
   chronos-storage      storage engine: record codec, MVCC, txn, interval index
   chronos-graph-model  graph model: nodes/edges/properties, 3-tier subgraphs
-  chronos-index        secondary indexes: vector (HNSW), full-text (BM25)
+  chronos-index        secondary indexes: in-memory BM25 + brute-force vector (HNSW: planned)
   chronos-temporal     bitemporal core: validity, invalidation, as-of
   chronos-provenance   triple<->chunk<->document links + source invalidation
   chronos-query        query language + planner + optimizer + executors

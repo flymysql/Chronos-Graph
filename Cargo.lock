@@ -192,6 +192,7 @@ dependencies = [
  "chronos-common",
  "chronos-community",
  "chronos-graph-model",
+ "chronos-index",
  "chronos-provenance",
  "chronos-query",
  "chronos-resolution",

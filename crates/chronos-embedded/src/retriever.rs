@@ -3,9 +3,10 @@
 //! context" pipeline.
 //!
 //! Since this build has no embedding model, the `SIMILAR(...)` operator is
-//! scored lexically over each fact's verbalization. The pipeline is otherwise
-//! the real thing: parse -> point-in-time filter -> rank -> token-budget trim
-//! -> graph-to-text with citations.
+//! scored with a real **BM25** index over each fact's verbalization (see
+//! `chronos-index`). The pipeline is otherwise the real thing: parse ->
+//! point-in-time + tenant filter -> BM25 rank -> token-budget trim ->
+//! graph-to-text with citations.
 
 use crate::FactStore;
 use chronos_common::{AsOf, Result, TenantId, TokenBudget};
@@ -37,37 +38,27 @@ impl<'a> MemoryRetriever<'a> {
         Self { store, tenant }
     }
 
-    /// Lexical similarity in `[0, 1]`: fraction of query terms present in the
-    /// fact's verbalization (case-insensitive substring match). No query terms
-    /// means "match everything" (score 1.0).
-    fn similarity(query_text: Option<&str>, verbalization: &str) -> f32 {
-        let Some(q) = query_text else { return 1.0 };
-        let hay = verbalization.to_lowercase();
-        let terms: Vec<&str> = q.split_whitespace().collect();
-        if terms.is_empty() {
-            return 1.0;
-        }
-        let hits = terms
-            .iter()
-            .filter(|t| hay.contains(&t.to_lowercase()))
-            .count();
-        hits as f32 / terms.len() as f32
-    }
-
-    /// Facts visible at `at`, scored by similarity and sorted descending.
+    /// Facts of this tenant visible at `at`, scored by BM25 relevance to the
+    /// `SIMILAR(...)` text and sorted descending. With no `SIMILAR` clause,
+    /// every visible fact matches (score `1.0`), ordered by recency (edge id).
     fn ranked_facts(&self, similar_to: Option<&str>, at: AsOf) -> Result<Vec<(f32, Fact)>> {
-        let mut scored: Vec<(f32, Fact)> = self
-            .store
-            .as_of_for(self.tenant, at)?
-            .facts
-            .into_iter()
-            .map(|f| {
-                let v = self.store.verbalize(&f);
-                (Self::similarity(similar_to, &v), f)
-            })
-            .filter(|(s, _)| *s > 0.0)
-            .collect();
-        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let facts = self.store.as_of_for(self.tenant, at)?.facts;
+        let mut scored: Vec<(f32, Fact)> = match similar_to {
+            None => facts.into_iter().map(|f| (1.0, f)).collect(),
+            Some(q) => {
+                let scores = self.store.bm25_scores(q);
+                facts
+                    .into_iter()
+                    .filter_map(|f| scores.get(&f.id).copied().map(|s| (s, f)))
+                    .filter(|(s, _)| *s > 0.0)
+                    .collect()
+            }
+        };
+        scored.sort_by(|a, b| {
+            b.0.partial_cmp(&a.0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then(b.1.id.raw().cmp(&a.1.id.raw()))
+        });
         Ok(scored)
     }
 

@@ -4,9 +4,9 @@ pub mod fulltext;
 pub mod manager;
 pub mod vector;
 
-pub use fulltext::{Bm25Hit, FullTextIndex};
-pub use manager::IndexManager;
-pub use vector::{VectorHit, VectorIndex};
+pub use fulltext::{tokenize, Bm25Hit, Bm25Index, FullTextIndex};
+pub use manager::{EmbeddingModel, InMemoryIndexManager, IndexManager};
+pub use vector::{cosine, BruteForceVectorIndex, VectorHit, VectorIndex};
 
 /// A filter applied during index search (e.g. tenant / validity predicates
 /// pushed down into the scan).
