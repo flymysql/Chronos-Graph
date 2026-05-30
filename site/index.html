@@ -8,6 +8,15 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="lang-en">
+<script>
+  // Set the language class before first paint to avoid a flash and to
+  // guarantee exactly one language is shown even before app.js loads.
+  (function () {
+    var saved = localStorage.getItem("chronos-lang");
+    var prefersZh = (navigator.language || "").toLowerCase().indexOf("zh") === 0;
+    document.body.className = "lang-" + (saved === "zh" || saved === "en" ? saved : (prefersZh ? "zh" : "en"));
+  })();
+</script>
 <div class="layout">
   <aside class="sidebar">
     <div class="brand"><span class="dot"></span> Chronos-Graph</div>
