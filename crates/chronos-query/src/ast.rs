@@ -2,18 +2,24 @@
 
 use chronos_common::{AsOf, TokenBudget};
 
-/// A parsed query. Only the fields needed to thread the skeleton through are
-/// modelled; pattern/clause detail is filled in at M2.
-#[derive(Debug, Default, Clone)]
+/// A parsed query. The grammar is intentionally forgiving: every clause beyond
+/// `RETURN` is optional, so partial queries still compile.
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Query {
-    /// Optional point-in-time selector from `AS OF ... TIME`.
+    /// Pattern variable bound by `MATCH (var ...)`, if present.
+    pub match_var: Option<String>,
+    /// Optional point-in-time selector from `AS OF [VALID|TRANSACTION] TIME n`.
     pub as_of: Option<AsOf>,
-    /// Optional semantic similarity target text from `SIMILAR(...)`.
+    /// Optional semantic similarity target text from `SIMILAR(var, "text")`.
     pub similar_to: Option<String>,
     /// Max traversal depth from `TRAVERSE SEMANTIC(depth <= n)`.
     pub max_depth: Option<u32>,
-    /// Token budget from `... budget = n tokens`.
+    /// Token budget from `TRAVERSE SEMANTIC(... budget = n tokens)`.
     pub budget: Option<TokenBudget>,
     /// Whether `RETURN CONTEXT(cite = true)` was requested.
-    pub return_context_cited: bool,
+    pub return_context: bool,
+    /// Whether the requested context should carry citations.
+    pub cite: bool,
+    /// Plain `RETURN <ident>, ...` projection (when not returning CONTEXT).
+    pub return_idents: Vec<String>,
 }

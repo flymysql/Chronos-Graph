@@ -12,6 +12,9 @@ description = "Embedded library form factor (single-node / edge agent memory) sh
 chronos-common.workspace = true
 chronos-storage.workspace = true
 chronos-temporal.workspace = true
+chronos-query.workspace = true
+chronos-graph-model.workspace = true
+chronos-provenance.workspace = true
 
 [dev-dependencies]
 proptest = "1"

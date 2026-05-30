@@ -4,8 +4,10 @@
 
 pub mod fact_codec;
 pub mod fact_store;
+pub mod retriever;
 
 pub use fact_store::FactStore;
+pub use retriever::MemoryRetriever;
 
 use chronos_common::config::EngineConfig;
 use chronos_common::Result;

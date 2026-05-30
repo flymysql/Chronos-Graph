@@ -36,8 +36,8 @@ pub fn build(q: &Query) -> Result<LogicalPlan> {
     if let Some(budget) = q.budget {
         ops.push(LogicalOp::Budget { budget });
     }
-    if q.return_context_cited {
-        ops.push(LogicalOp::Context { cite: true });
+    if q.return_context {
+        ops.push(LogicalOp::Context { cite: q.cite });
     }
     Ok(LogicalPlan { ops })
 }

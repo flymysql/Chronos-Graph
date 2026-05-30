@@ -9,7 +9,7 @@
 //! - [`FactStore::as_of`] — point-in-time query over both timelines.
 
 use crate::fact_codec::{decode_fact, encode_fact, fact_key, FACT_PREFIX};
-use chronos_common::{AsOf, EdgeId, ProvenanceRef, Result, Timestamp};
+use chronos_common::{AsOf, EdgeId, NodeId, PredicateId, ProvenanceRef, Result, Timestamp};
 use chronos_storage::{
     InMemoryIntervalIndex, IntervalIndex, KeyRange, MemoryEngine, StorageEngine,
 };
@@ -23,6 +23,8 @@ pub struct FactStore {
     engine: MemoryEngine,
     index: RwLock<InMemoryIntervalIndex>,
     provenance: RwLock<HashMap<EdgeId, ProvenanceRef>>,
+    nodes: RwLock<HashMap<NodeId, String>>,
+    predicates: RwLock<HashMap<PredicateId, String>>,
     next_edge: AtomicU64,
 }
 
@@ -38,6 +40,8 @@ impl FactStore {
             engine: MemoryEngine::new(),
             index: RwLock::new(InMemoryIntervalIndex::default()),
             provenance: RwLock::new(HashMap::new()),
+            nodes: RwLock::new(HashMap::new()),
+            predicates: RwLock::new(HashMap::new()),
             next_edge: AtomicU64::new(1),
         }
     }
@@ -45,6 +49,51 @@ impl FactStore {
     /// Allocate a fresh edge id.
     pub fn next_edge_id(&self) -> EdgeId {
         EdgeId::new(self.next_edge.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Register a human-readable name for a node (used for verbalization and
+    /// lexical similarity scoring).
+    pub fn put_node(&self, id: NodeId, name: impl Into<String>) {
+        self.nodes
+            .write()
+            .expect("nodes poisoned")
+            .insert(id, name.into());
+    }
+
+    /// Register a human-readable name for a predicate.
+    pub fn put_predicate(&self, id: PredicateId, name: impl Into<String>) {
+        self.predicates
+            .write()
+            .expect("predicates poisoned")
+            .insert(id, name.into());
+    }
+
+    pub fn node_name(&self, id: NodeId) -> String {
+        self.nodes
+            .read()
+            .expect("nodes poisoned")
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| format!("node#{}", id.raw()))
+    }
+
+    pub fn predicate_name(&self, id: PredicateId) -> String {
+        self.predicates
+            .read()
+            .expect("predicates poisoned")
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| format!("rel#{}", id.raw()))
+    }
+
+    /// Render a fact as natural-language-ish text: `subject predicate object`.
+    pub fn verbalize(&self, fact: &Fact) -> String {
+        format!(
+            "{} {} {}",
+            self.node_name(fact.subject),
+            self.predicate_name(fact.predicate),
+            self.node_name(fact.object)
+        )
     }
 
     /// Fetch a fact by id at the latest committed state.

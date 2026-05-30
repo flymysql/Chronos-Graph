@@ -16,17 +16,20 @@ pub mod physical_plan;
 pub use ast::Query;
 pub use executor::context::ContextBlock;
 
-/// A query compiled down to an executable physical plan.
+/// A query compiled down to an executable physical plan. Retains the parsed
+/// AST so executors can read its semantic parameters (similarity target,
+/// point-in-time selector, budget, ...).
 pub struct CompiledQuery {
+    pub query: ast::Query,
     pub plan: physical_plan::PhysicalPlan,
 }
 
-/// Compile query text into an executable plan. Each stage is currently a stub.
+/// Compile query text into an executable plan.
 pub fn compile(src: &str) -> chronos_common::Result<CompiledQuery> {
     let tokens = lexer::lex(src)?;
-    let ast = parser::parse(tokens)?;
-    let logical = logical_plan::build(&ast)?;
+    let query = parser::parse(tokens)?;
+    let logical = logical_plan::build(&query)?;
     let optimized = optimizer::optimize(logical)?;
     let plan = physical_plan::lower(optimized)?;
-    Ok(CompiledQuery { plan })
+    Ok(CompiledQuery { query, plan })
 }

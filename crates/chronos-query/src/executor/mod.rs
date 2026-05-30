@@ -6,7 +6,7 @@ pub mod hybrid;
 pub mod traversal;
 pub mod upsert_fact;
 
-pub use budget::SubgraphBudgeter;
-pub use context::{ContextBlock, ContextSerializer};
+pub use budget::{GreedyBudgeter, SubgraphBudgeter};
+pub use context::{ContextBlock, ContextSerializer, DefaultContextSerializer};
 pub use hybrid::{HybridScorer, RetrievalOperator};
 pub use upsert_fact::FactWriter;
