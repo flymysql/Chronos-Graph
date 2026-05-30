@@ -2,6 +2,9 @@
 
 A **bitemporal-native graph database** purpose-built for RAG and AI-agent memory.
 
+**SDK & API documentation (bilingual EN / 中文): https://flymysql.github.io/Chronos-Graph/**
+— REST / Python / TypeScript / MCP / embedded usage, plus architecture diagrams.
+
 Most GraphRAG / agent-memory stacks (e.g. Graphiti/Zep) implement temporal logic,
 fact invalidation, hybrid retrieval and provenance **on top of a general-purpose
 graph store** (Neo4j / FalkorDB / Kùzu) — at the framework layer. Chronos-Graph
@@ -92,9 +95,10 @@ pushes these capabilities **down into the database engine itself**:
 
 ## Documentation
 
-SDK & API docs (REST, Python, TypeScript, MCP, embedded) are a static site in
-[`site/`](site/), published to GitHub Pages at
-`https://flymysql.github.io/Chronos-Graph/`. Preview locally with
+SDK & API docs (REST, Python, TypeScript, MCP, embedded) plus **architecture
+diagrams** (system overview, retrieval pipeline, crate/module map) are a
+bilingual (EN / 中文) static site in [`site/`](site/), published to GitHub Pages
+at **<https://flymysql.github.io/Chronos-Graph/>**. Preview locally with
 `cd site && python3 -m http.server 8000`.
 
 ## Workspace layout

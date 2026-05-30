@@ -170,6 +170,24 @@ td code { white-space: nowrap; }
 .ok { color: var(--accent-2); }
 .plan { color: var(--warn); }
 
+/* Architecture diagrams (inline SVG) */
+.diagram { width: 100%; height: auto; margin: 1.25rem 0 .5rem; display: block; }
+.diagram .band { fill: rgba(88,166,255,.05); stroke: var(--border); }
+.diagram .box { fill: var(--bg-soft); stroke: var(--border); }
+.diagram .box.accent { stroke: var(--accent); }
+.diagram .box.accent2 { stroke: var(--accent-2); }
+.diagram .box.plan { stroke: var(--warn); stroke-dasharray: 4 3; }
+.diagram text { fill: var(--text); font-family: inherit; }
+.diagram .lbl { font-size: 14px; font-weight: 600; }
+.diagram .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+.diagram .sub { font-size: 11px; fill: var(--text-dim); }
+.diagram .band-title { font-size: 11px; fill: var(--text-dim); letter-spacing: .12em; }
+.diagram .edge { stroke: var(--text-dim); stroke-width: 1.4; fill: none; }
+.diagram .edge.accent { stroke: var(--accent); }
+.diagram .edge.accent2 { stroke: var(--accent-2); }
+.diagram marker path { fill: var(--text-dim); }
+.fig-cap { color: var(--text-dim); font-size: .85rem; margin: 0 0 2rem; }
+
 footer {
   margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
   color: var(--text-dim); font-size: .85rem;

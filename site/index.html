@@ -35,6 +35,7 @@
       <a href="#overview"><span class="en">Overview</span><span class="zh">概览</span></a>
       <a href="#quickstart"><span class="en">Quick start</span><span class="zh">快速开始</span></a>
       <a href="#concepts"><span class="en">Core concepts</span><span class="zh">核心概念</span></a>
+      <a href="#architecture"><span class="en">Architecture</span><span class="zh">架构</span></a>
     </div>
     <div class="nav-group">
       <h4><span class="en">Interfaces</span><span class="zh">接口</span></h4>
@@ -145,6 +146,185 @@ console.log(res.text);</code></pre>
         <li class="en"><strong>Tenant</strong> — an isolation boundary; facts, retrieval, communities and resolution are all scoped to a tenant.</li>
         <li class="zh"><strong>Tenant</strong> — 隔离边界;fact、retrieval、community 与 resolution 都按 tenant 隔离。</li>
       </ul>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section id="architecture">
+      <h2><span class="en">Architecture</span><span class="zh">架构</span></h2>
+      <p class="en">Chronos-Graph pushes temporal logic, hybrid retrieval and provenance <em>down into the engine</em> rather than bolting them onto a general-purpose graph store. The system is a layered kernel: thin interfaces on top, a single engine kernel in the middle, and a pluggable storage/foundation layer underneath.</p>
+      <p class="zh">Chronos-Graph 把 temporal logic、hybrid retrieval 与 provenance <em>下推进 engine</em>,而非在通用 graph store 之上拼装。整体是一个分层的 kernel:顶层是轻薄的 interface,中间是单一的 engine kernel,底层是可插拔的 storage / foundation。</p>
+
+      <h3><span class="en">System overview</span><span class="zh">整体架构纵览</span></h3>
+      <svg class="diagram" viewBox="0 0 860 545" role="img" aria-label="System overview">
+        <defs>
+          <marker id="arr" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0,0 L6.5,3 L0,6 Z"/></marker>
+          <marker id="arrS" markerWidth="9" markerHeight="9" refX="0" refY="3" orient="auto"><path d="M6.5,0 L0,3 L6.5,6 Z"/></marker>
+        </defs>
+
+        <text class="band-title" x="24" y="20">CLIENTS &amp; AGENTS</text>
+        <rect class="band" x="16" y="28" width="828" height="68" rx="10"/>
+        <rect class="box" x="36"  y="44" width="240" height="40" rx="7"/>
+        <rect class="box" x="304" y="44" width="240" height="40" rx="7"/>
+        <rect class="box" x="572" y="44" width="240" height="40" rx="7"/>
+        <text class="lbl" x="156" y="69" text-anchor="middle">LLM agent</text>
+        <text class="lbl" x="424" y="69" text-anchor="middle">Application</text>
+        <text class="lbl" x="692" y="69" text-anchor="middle">CLI / curl</text>
+
+        <text class="band-title" x="24" y="118">INTERFACE LAYER</text>
+        <rect class="band" x="16" y="126" width="828" height="72" rx="10"/>
+        <rect class="box accent" x="36"  y="140" width="240" height="46" rx="7"/>
+        <rect class="box accent" x="304" y="140" width="240" height="46" rx="7"/>
+        <rect class="box accent" x="572" y="140" width="240" height="46" rx="7"/>
+        <text class="lbl" x="156" y="160" text-anchor="middle">REST API</text>
+        <text class="sub mono" x="156" y="177" text-anchor="middle">chronos-server</text>
+        <text class="lbl" x="424" y="160" text-anchor="middle">MCP server</text>
+        <text class="sub mono" x="424" y="177" text-anchor="middle">chronos-mcp</text>
+        <text class="lbl" x="692" y="160" text-anchor="middle">Embedded API</text>
+        <text class="sub mono" x="692" y="177" text-anchor="middle">chronos-embedded</text>
+
+        <text class="band-title" x="24" y="220">ENGINE KERNEL</text>
+        <rect class="band" x="16" y="228" width="828" height="150" rx="10"/>
+        <rect class="box" x="36"  y="242" width="240" height="46" rx="7"/>
+        <rect class="box" x="304" y="242" width="240" height="46" rx="7"/>
+        <rect class="box accent2" x="572" y="242" width="240" height="46" rx="7"/>
+        <text class="lbl" x="156" y="262" text-anchor="middle">Query pipeline</text>
+        <text class="sub mono" x="156" y="278" text-anchor="middle">lexer · parser · plan</text>
+        <text class="lbl" x="424" y="262" text-anchor="middle">MemoryRetriever</text>
+        <text class="sub" x="424" y="278" text-anchor="middle">question → context</text>
+        <text class="lbl" x="692" y="262" text-anchor="middle">FactStore</text>
+        <text class="sub mono" x="692" y="278" text-anchor="middle">UPSERT_FACT · as_of</text>
+        <rect class="box" x="36"  y="312" width="240" height="46" rx="7"/>
+        <rect class="box" x="304" y="312" width="240" height="46" rx="7"/>
+        <rect class="box" x="572" y="312" width="240" height="46" rx="7"/>
+        <text class="lbl" x="156" y="332" text-anchor="middle">Indexes</text>
+        <text class="sub mono" x="156" y="348" text-anchor="middle">BM25 · vector</text>
+        <text class="lbl" x="424" y="332" text-anchor="middle">Communities</text>
+        <text class="sub" x="424" y="348" text-anchor="middle">incremental CC</text>
+        <text class="lbl" x="692" y="332" text-anchor="middle">Entity resolution</text>
+        <text class="sub" x="692" y="348" text-anchor="middle">detect · merge</text>
+
+        <text class="band-title" x="24" y="400">STORAGE &amp; FOUNDATION</text>
+        <rect class="band" x="16" y="408" width="828" height="86" rx="10"/>
+        <rect class="box" x="36"  y="424" width="182" height="54" rx="7"/>
+        <rect class="box" x="234" y="424" width="182" height="54" rx="7"/>
+        <rect class="box" x="432" y="424" width="182" height="54" rx="7"/>
+        <rect class="box accent" x="630" y="424" width="182" height="54" rx="7"/>
+        <text class="lbl" x="127" y="448" text-anchor="middle">Temporal core</text>
+        <text class="sub mono" x="127" y="466" text-anchor="middle">valid · tx time</text>
+        <text class="lbl" x="325" y="448" text-anchor="middle">Provenance</text>
+        <text class="sub mono" x="325" y="466" text-anchor="middle">doc · chunk</text>
+        <text class="lbl" x="523" y="448" text-anchor="middle">Graph model</text>
+        <text class="sub mono" x="523" y="466" text-anchor="middle">nodes · edges</text>
+        <text class="lbl" x="721" y="448" text-anchor="middle">StorageEngine</text>
+        <text class="sub mono" x="721" y="466" text-anchor="middle">MVCC / RocksDB</text>
+
+        <line class="edge" x1="430" y1="96"  x2="430" y2="124" marker-end="url(#arr)" marker-start="url(#arrS)"/>
+        <line class="edge" x1="430" y1="198" x2="430" y2="226" marker-end="url(#arr)" marker-start="url(#arrS)"/>
+        <line class="edge" x1="430" y1="378" x2="430" y2="406" marker-end="url(#arr)" marker-start="url(#arrS)"/>
+      </svg>
+      <p class="fig-cap en">Top-down dependency, bottom-up data flow. Every interface speaks to the same kernel; the kernel never depends on a specific storage backend (it holds a <code>Box&lt;dyn StorageEngine&gt;</code>), so the in-memory MVCC engine and the durable RocksDB engine are interchangeable.</p>
+      <p class="fig-cap zh">自上而下是依赖方向,自下而上是数据流。所有 interface 都对接同一个 kernel;kernel 不依赖具体 storage backend(持有 <code>Box&lt;dyn StorageEngine&gt;</code>),因此 in-memory MVCC engine 与持久化 RocksDB engine 可互换。</p>
+
+      <h3><span class="en">Retrieval pipeline</span><span class="zh">检索流水线</span></h3>
+      <svg class="diagram" viewBox="0 0 820 500" role="img" aria-label="Retrieval pipeline">
+        <defs>
+          <marker id="arr2" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0,0 L6.5,3 L0,6 Z"/></marker>
+        </defs>
+
+        <rect class="box" x="50" y="18" width="320" height="54" rx="7"/>
+        <text class="lbl" x="210" y="40" text-anchor="middle">Query string</text>
+        <text class="sub mono" x="210" y="58" text-anchor="middle">MATCH … SIMILAR … AS OF … RETURN</text>
+
+        <rect class="box" x="50" y="92"  width="320" height="40" rx="7"/>
+        <text class="lbl" x="210" y="117" text-anchor="middle">Lexer → tokens</text>
+        <rect class="box" x="50" y="152" width="320" height="40" rx="7"/>
+        <text class="lbl" x="210" y="177" text-anchor="middle">Parser → AST</text>
+        <rect class="box" x="50" y="212" width="320" height="40" rx="7"/>
+        <text class="lbl" x="210" y="237" text-anchor="middle">Planner / optimizer</text>
+
+        <rect class="box accent" x="50" y="272" width="320" height="58" rx="7"/>
+        <text class="lbl" x="210" y="296" text-anchor="middle">Executors</text>
+        <text class="sub" x="210" y="313" text-anchor="middle">physical operators</text>
+
+        <rect class="box" x="50" y="350" width="320" height="48" rx="7"/>
+        <text class="lbl" x="210" y="372" text-anchor="middle">Graph-to-text serializer</text>
+        <text class="sub mono" x="210" y="388" text-anchor="middle">RETURN CONTEXT(cite)</text>
+
+        <rect class="box accent2" x="50" y="418" width="320" height="50" rx="7"/>
+        <text class="lbl" x="210" y="440" text-anchor="middle">Cited context</text>
+        <text class="sub mono" x="210" y="456" text-anchor="middle">{ text, citations[] }</text>
+
+        <line class="edge" x1="210" y1="72"  x2="210" y2="90"  marker-end="url(#arr2)"/>
+        <line class="edge" x1="210" y1="132" x2="210" y2="150" marker-end="url(#arr2)"/>
+        <line class="edge" x1="210" y1="192" x2="210" y2="210" marker-end="url(#arr2)"/>
+        <line class="edge" x1="210" y1="252" x2="210" y2="270" marker-end="url(#arr2)"/>
+        <line class="edge accent2" x1="210" y1="330" x2="210" y2="348" marker-end="url(#arr2)"/>
+        <line class="edge accent2" x1="210" y1="398" x2="210" y2="416" marker-end="url(#arr2)"/>
+
+        <rect class="box accent" x="520" y="240" width="270" height="44" rx="7"/>
+        <text class="lbl" x="655" y="259" text-anchor="middle">BM25 index</text>
+        <text class="sub mono" x="655" y="275" text-anchor="middle">ranks SIMILAR(n, …)</text>
+        <rect class="box" x="520" y="294" width="270" height="44" rx="7"/>
+        <text class="lbl" x="655" y="313" text-anchor="middle">FactStore.as_of</text>
+        <text class="sub" x="655" y="329" text-anchor="middle">bitemporal point-in-time</text>
+        <rect class="box" x="520" y="348" width="270" height="44" rx="7"/>
+        <text class="lbl" x="655" y="367" text-anchor="middle">GreedyBudgeter</text>
+        <text class="sub mono" x="655" y="383" text-anchor="middle">TRAVERSE SEMANTIC(budget)</text>
+
+        <line class="edge accent" x1="370" y1="295" x2="520" y2="262" marker-end="url(#arr2)"/>
+        <line class="edge accent" x1="370" y1="301" x2="520" y2="316" marker-end="url(#arr2)"/>
+        <line class="edge accent" x1="370" y1="307" x2="520" y2="370" marker-end="url(#arr2)"/>
+      </svg>
+      <p class="fig-cap en">One <code>/v1/search</code> call runs end-to-end inside the engine: the extended-Cypher string is lexed, parsed and planned, then the executors fan out to the BM25 index (for <code>SIMILAR</code>), the bitemporal <code>as_of</code> filter (for <code>AS OF</code>) and the token budgeter (for <code>TRAVERSE SEMANTIC</code>), and the result is serialized to LLM-ready text with citations.</p>
+      <p class="fig-cap zh">一次 <code>/v1/search</code> 调用在 engine 内端到端完成:extended-Cypher 字符串经 lex / parse / plan 后,executor 分发到 BM25 index(处理 <code>SIMILAR</code>)、bitemporal <code>as_of</code> filter(处理 <code>AS OF</code>)与 token budgeter(处理 <code>TRAVERSE SEMANTIC</code>),最终序列化为带 citation、可供 LLM 使用的文本。</p>
+
+      <h3><span class="en">Crate &amp; module map</span><span class="zh">Crate / 模块依赖图</span></h3>
+      <svg class="diagram" viewBox="0 0 860 400" role="img" aria-label="Crate dependency map">
+        <defs>
+          <marker id="arr3" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto"><path d="M0,0 L6.5,3 L0,6 Z"/></marker>
+        </defs>
+
+        <rect class="box accent" x="250" y="16" width="160" height="44" rx="7"/>
+        <text class="lbl mono" x="330" y="43" text-anchor="middle">chronos-server</text>
+        <rect class="box accent" x="450" y="16" width="160" height="44" rx="7"/>
+        <text class="lbl mono" x="530" y="43" text-anchor="middle">chronos-mcp</text>
+
+        <rect class="box accent2" x="290" y="92" width="280" height="48" rx="7"/>
+        <text class="lbl mono" x="430" y="113" text-anchor="middle">chronos-embedded</text>
+        <text class="sub" x="430" y="130" text-anchor="middle">assembles the kernel · FactStore</text>
+
+        <rect class="box" x="70"  y="168" width="200" height="44" rx="7"/>
+        <text class="lbl mono" x="170" y="195" text-anchor="middle">chronos-query</text>
+        <rect class="box" x="330" y="168" width="200" height="44" rx="7"/>
+        <text class="lbl mono" x="430" y="195" text-anchor="middle">chronos-community</text>
+        <rect class="box" x="590" y="168" width="200" height="44" rx="7"/>
+        <text class="lbl mono" x="690" y="195" text-anchor="middle">chronos-resolution</text>
+
+        <rect class="box" x="30"  y="244" width="150" height="44" rx="7"/>
+        <text class="sub mono" x="105" y="270" text-anchor="middle">chronos-index</text>
+        <rect class="box" x="192" y="244" width="150" height="44" rx="7"/>
+        <text class="sub mono" x="267" y="270" text-anchor="middle">chronos-temporal</text>
+        <rect class="box" x="355" y="244" width="150" height="44" rx="7"/>
+        <text class="sub mono" x="430" y="270" text-anchor="middle">chronos-provenance</text>
+        <rect class="box" x="517" y="244" width="150" height="44" rx="7"/>
+        <text class="sub mono" x="592" y="270" text-anchor="middle">graph-model</text>
+        <rect class="box accent" x="680" y="244" width="150" height="44" rx="7"/>
+        <text class="sub mono" x="755" y="270" text-anchor="middle">chronos-storage</text>
+
+        <rect class="band" x="230" y="320" width="400" height="48" rx="7"/>
+        <text class="lbl mono" x="430" y="340" text-anchor="middle">chronos-common</text>
+        <text class="sub" x="430" y="357" text-anchor="middle">base types: ids · time · span · errors</text>
+
+        <line class="edge" x1="330" y1="60" x2="400" y2="90" marker-end="url(#arr3)"/>
+        <line class="edge" x1="530" y1="60" x2="460" y2="90" marker-end="url(#arr3)"/>
+        <line class="edge" x1="400" y1="140" x2="200" y2="166" marker-end="url(#arr3)"/>
+        <line class="edge" x1="430" y1="140" x2="430" y2="166" marker-end="url(#arr3)"/>
+        <line class="edge" x1="460" y1="140" x2="660" y2="166" marker-end="url(#arr3)"/>
+        <line class="edge" x1="170" y1="212" x2="240" y2="242" marker-end="url(#arr3)"/>
+        <line class="edge" x1="430" y1="288" x2="430" y2="318" marker-end="url(#arr3)"/>
+      </svg>
+      <p class="fig-cap en">Edges point from a crate to what it depends on (top depends on bottom). Service crates are thin wrappers over <code>chronos-embedded</code>, which assembles the kernel; <code>chronos-query</code> drives the foundation libraries; and every crate ultimately builds on <code>chronos-common</code>. The same kernel ships as a server, an MCP tool provider, or an in-process library.</p>
+      <p class="fig-cap zh">箭头从一个 crate 指向其依赖(上层依赖下层)。service crate 只是 <code>chronos-embedded</code> 的轻封装,由它组装 kernel;<code>chronos-query</code> 驱动底层 foundation 库;所有 crate 最终都构建在 <code>chronos-common</code> 之上。同一个 kernel 可作为 server、MCP tool provider 或进程内 library 交付。</p>
     </section>
 
     <!-- REST -->
