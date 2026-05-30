@@ -13,8 +13,20 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .expect("CHRONOS_ADDR must be a valid socket address");
 
-    let state = AppState::new(Arc::new(FactStore::new()));
+    let state = AppState::new(Arc::new(build_store()?));
     serve(addr, state).await
+}
+
+/// Build the engine. With the `rocks` feature and `CHRONOS_DATA_DIR` set, use a
+/// durable RocksDB store; otherwise fall back to in-memory.
+fn build_store() -> std::io::Result<FactStore> {
+    #[cfg(feature = "rocks")]
+    if let Ok(dir) = std::env::var("CHRONOS_DATA_DIR") {
+        eprintln!("chronos-server: durable store at {dir}");
+        return FactStore::open_rocks(dir)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+    }
+    Ok(FactStore::new())
 }
 
 /// Minimal tracing setup without pulling tracing-subscriber: log to stderr via

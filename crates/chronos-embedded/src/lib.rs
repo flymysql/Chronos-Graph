@@ -20,12 +20,15 @@ pub struct Chronos {
 
 impl Chronos {
     /// Open (or create) an embedded engine at the configured data directory.
+    ///
+    /// With the `rocks` feature the store is durable (RocksDB at
+    /// `config.data_dir`, recovering all state on open); otherwise it is an
+    /// in-memory store.
     pub fn open(config: EngineConfig) -> Result<Self> {
-        // M1: in-memory FactStore. A durable RocksDB-backed store (behind the
-        // storage `rocks` feature) will be selectable via config in M1+.
-        Ok(Self {
-            config,
-            facts: FactStore::new(),
-        })
+        #[cfg(feature = "rocks")]
+        let facts = FactStore::open_rocks(&config.data_dir)?;
+        #[cfg(not(feature = "rocks"))]
+        let facts = FactStore::new();
+        Ok(Self { config, facts })
     }
 }

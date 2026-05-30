@@ -21,6 +21,44 @@ pub fn fact_key(id: EdgeId) -> Vec<u8> {
 
 /// Key-space prefix covering all fact records.
 pub const FACT_PREFIX: &[u8] = b"F";
+/// Key-space prefix for node-name records (`N` + node id -> UTF-8 name).
+pub const NODE_PREFIX: &[u8] = b"N";
+/// Key-space prefix for predicate-name records (`P` + predicate id -> name).
+pub const PRED_PREFIX: &[u8] = b"P";
+/// Key-space prefix for per-edge tenant assignments (`T` + edge id -> u64 LE).
+pub const TENANT_PREFIX: &[u8] = b"T";
+
+fn id_key(prefix: &[u8], id: u64) -> Vec<u8> {
+    let mut k = Vec::with_capacity(prefix.len() + 8);
+    k.extend_from_slice(prefix);
+    k.extend_from_slice(&id.to_le_bytes());
+    k
+}
+
+/// Storage key for a node's name.
+pub fn node_key(id: NodeId) -> Vec<u8> {
+    id_key(NODE_PREFIX, id.raw())
+}
+
+/// Storage key for a predicate's name.
+pub fn pred_key(id: PredicateId) -> Vec<u8> {
+    id_key(PRED_PREFIX, id.raw())
+}
+
+/// Storage key for an edge's tenant assignment.
+pub fn tenant_key(id: EdgeId) -> Vec<u8> {
+    id_key(TENANT_PREFIX, id.raw())
+}
+
+/// Parse the trailing u64 id from a prefixed key.
+pub fn id_from_key(prefix: &[u8], key: &[u8]) -> Option<u64> {
+    if key.len() == prefix.len() + 8 && key.starts_with(prefix) {
+        let bytes: [u8; 8] = key[prefix.len()..].try_into().ok()?;
+        Some(u64::from_le_bytes(bytes))
+    } else {
+        None
+    }
+}
 
 struct Writer {
     buf: Vec<u8>,

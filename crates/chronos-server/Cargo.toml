@@ -12,6 +12,11 @@ description = "Service layer: HTTP/REST endpoints over the engine, sessions, mul
 name = "chronos-server"
 path = "src/main.rs"
 
+[features]
+default = []
+# Durable RocksDB storage; with CHRONOS_DATA_DIR set the server persists.
+rocks = ["chronos-embedded/rocks"]
+
 [dependencies]
 chronos-common.workspace = true
 chronos-query.workspace = true

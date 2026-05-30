@@ -36,3 +36,5 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Build + test rocks backend
         run: cargo test -p chronos-storage --features rocks
+      - name: Durable FactStore recovery
+        run: cargo test -p chronos-embedded --features rocks

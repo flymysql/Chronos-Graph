@@ -19,5 +19,10 @@ chronos-community.workspace = true
 chronos-resolution.workspace = true
 chronos-index.workspace = true
 
+[features]
+default = []
+# Durable RocksDB-backed storage (FactStore::open_rocks / Chronos::open).
+rocks = ["chronos-storage/rocks"]
+
 [dev-dependencies]
 proptest = "1"

@@ -8,7 +8,10 @@
 //!   span (real-world supersession, *not* deletion), and append the new fact.
 //! - [`FactStore::as_of`] — point-in-time query over both timelines.
 
-use crate::fact_codec::{decode_fact, encode_fact, fact_key, FACT_PREFIX};
+use crate::fact_codec::{
+    decode_fact, encode_fact, fact_key, id_from_key, node_key, pred_key, tenant_key, FACT_PREFIX,
+    NODE_PREFIX, PRED_PREFIX, TENANT_PREFIX,
+};
 use chronos_common::{
     AsOf, BitemporalSpan, ChunkId, DocId, EdgeId, NodeId, PredicateId, ProvenanceRef, Result,
     TenantId, Timestamp,
@@ -26,7 +29,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
 
 pub struct FactStore {
-    engine: MemoryEngine,
+    engine: Box<dyn StorageEngine>,
     index: RwLock<InMemoryIntervalIndex>,
     provenance: RwLock<HashMap<EdgeId, ProvenanceRef>>,
     nodes: RwLock<HashMap<NodeId, String>>,
@@ -60,9 +63,26 @@ impl Default for FactStore {
 }
 
 impl FactStore {
+    /// In-memory (non-durable) store, backed by [`MemoryEngine`].
     pub fn new() -> Self {
-        Self {
-            engine: MemoryEngine::new(),
+        Self::from_engine(Box::new(MemoryEngine::new())).expect("memory rebuild is infallible")
+    }
+
+    /// Open a durable store backed by RocksDB at `path`, recovering all state
+    /// (facts, names, tenants, indexes, communities) from disk.
+    #[cfg(feature = "rocks")]
+    pub fn open_rocks(path: impl AsRef<std::path::Path>) -> Result<Self> {
+        let engine = chronos_storage::rocks::RocksEngine::open(path)?;
+        Self::from_engine(Box::new(engine))
+    }
+
+    /// Build a store over `engine` and recover in-memory state from it. For a
+    /// fresh engine this is a no-op; for a populated (durable) one it rebuilds
+    /// the interval index, provenance, name registries, tenant map, per-tenant
+    /// communities and the BM25 index from the persisted records.
+    pub fn from_engine(engine: Box<dyn StorageEngine>) -> Result<Self> {
+        let store = Self {
+            engine,
             index: RwLock::new(InMemoryIntervalIndex::default()),
             provenance: RwLock::new(HashMap::new()),
             nodes: RwLock::new(HashMap::new()),
@@ -75,6 +95,95 @@ impl FactStore {
             next_edge: AtomicU64::new(1),
             next_node: AtomicU64::new(1),
             next_predicate: AtomicU64::new(1),
+        };
+        store.rebuild()?;
+        Ok(store)
+    }
+
+    /// Recover all in-memory derived state from the persisted key-space.
+    fn rebuild(&self) -> Result<()> {
+        let txn = self.engine.begin()?;
+        let (mut max_node, mut max_pred, mut max_edge) = (0u64, 0u64, 0u64);
+
+        // Names first (verbalization needs them).
+        for (k, v) in self.engine.scan(&txn, KeyRange::prefix(NODE_PREFIX))? {
+            if let Some(id) = id_from_key(NODE_PREFIX, &k) {
+                let name = String::from_utf8_lossy(&v).into_owned();
+                self.nodes
+                    .write()
+                    .expect("nodes poisoned")
+                    .insert(NodeId::new(id), name.clone());
+                self.node_ids
+                    .write()
+                    .expect("node_ids poisoned")
+                    .insert(name, NodeId::new(id));
+                max_node = max_node.max(id);
+            }
+        }
+        for (k, v) in self.engine.scan(&txn, KeyRange::prefix(PRED_PREFIX))? {
+            if let Some(id) = id_from_key(PRED_PREFIX, &k) {
+                let name = String::from_utf8_lossy(&v).into_owned();
+                self.predicates
+                    .write()
+                    .expect("predicates poisoned")
+                    .insert(PredicateId::new(id), name.clone());
+                self.predicate_ids
+                    .write()
+                    .expect("predicate_ids poisoned")
+                    .insert(name, PredicateId::new(id));
+                max_pred = max_pred.max(id);
+            }
+        }
+        // Tenant assignments.
+        for (k, v) in self.engine.scan(&txn, KeyRange::prefix(TENANT_PREFIX))? {
+            if let (Some(id), Ok(bytes)) = (id_from_key(TENANT_PREFIX, &k), v.as_slice().try_into())
+            {
+                let tenant = u64::from_le_bytes(bytes);
+                self.tenants
+                    .write()
+                    .expect("tenants poisoned")
+                    .insert(EdgeId::new(id), TenantId::new(tenant));
+            }
+        }
+        // Facts: rebuild interval index, provenance, communities, full-text.
+        for (_k, v) in self.engine.scan(&txn, KeyRange::prefix(FACT_PREFIX))? {
+            let fact = decode_fact(&v)?;
+            max_edge = max_edge.max(fact.id.raw());
+            self.index
+                .write()
+                .expect("index poisoned")
+                .insert(fact.id, &fact.span)?;
+            self.provenance
+                .write()
+                .expect("prov poisoned")
+                .insert(fact.id, fact.provenance);
+            let tenant = self.tenant_of(fact.id);
+            self.communities
+                .write()
+                .expect("communities poisoned")
+                .entry(tenant)
+                .or_default()
+                .add_edge(fact.subject, fact.object);
+            let text = self.verbalize(&fact);
+            self.fulltext
+                .write()
+                .expect("fulltext poisoned")
+                .add(fact.id, &text);
+        }
+
+        self.next_node.store(max_node + 1, Ordering::SeqCst);
+        self.next_predicate.store(max_pred + 1, Ordering::SeqCst);
+        self.next_edge.store(max_edge + 1, Ordering::SeqCst);
+        Ok(())
+    }
+
+    /// Persist a single key/value pair in its own transaction (used for the
+    /// durable name/predicate registries, which are idempotent).
+    fn persist_kv(&self, key: Vec<u8>, val: Vec<u8>) {
+        if let Ok(mut txn) = self.engine.begin() {
+            if self.engine.put(&mut txn, key, val).is_ok() {
+                let _ = self.engine.commit(txn);
+            }
         }
     }
 
@@ -177,20 +286,21 @@ impl FactStore {
     }
 
     /// Register a human-readable name for a node (used for verbalization and
-    /// lexical similarity scoring).
+    /// lexical similarity scoring). Persisted for durable recovery.
     pub fn put_node(&self, id: NodeId, name: impl Into<String>) {
-        self.nodes
-            .write()
-            .expect("nodes poisoned")
-            .insert(id, name.into());
+        let name = name.into();
+        self.persist_kv(node_key(id), name.as_bytes().to_vec());
+        self.nodes.write().expect("nodes poisoned").insert(id, name);
     }
 
-    /// Register a human-readable name for a predicate.
+    /// Register a human-readable name for a predicate. Persisted for recovery.
     pub fn put_predicate(&self, id: PredicateId, name: impl Into<String>) {
+        let name = name.into();
+        self.persist_kv(pred_key(id), name.as_bytes().to_vec());
         self.predicates
             .write()
             .expect("predicates poisoned")
-            .insert(id, name.into());
+            .insert(id, name);
     }
 
     pub fn node_name(&self, id: NodeId) -> String {
@@ -340,6 +450,15 @@ impl FactStore {
 
         self.engine
             .put(&mut txn, fact_key(new_fact.id), encode_fact(&new_fact))?;
+        // Persist the tenant assignment atomically with the fact (DEFAULT is
+        // implicit and not stored).
+        if tenant != TenantId::DEFAULT {
+            self.engine.put(
+                &mut txn,
+                tenant_key(new_fact.id),
+                tenant.raw().to_le_bytes().to_vec(),
+            )?;
+        }
         self.engine.commit(txn)?;
 
         self.index

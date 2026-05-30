@@ -62,6 +62,12 @@ pushes these capabilities **down into the database engine itself**:
 >   the scan — a tenant-scoped retriever can never observe another tenant's
 >   facts, and contradiction detection never crosses the boundary. The HTTP
 >   layer reads the tenant from the `X-Tenant-Id` header.
+> - **Durable engine** (M6): `FactStore` is storage-engine-agnostic
+>   (`Box<dyn StorageEngine>`). With the `rocks` feature, `FactStore::open_rocks`
+>   / `Chronos::open` back the engine with RocksDB and **recover all state**
+>   (facts, node/predicate names, tenant assignments, interval index,
+>   provenance, per-tenant communities and the BM25 index) from disk on open;
+>   tenant assignments are persisted atomically with their fact.
 > - `sdks/`: dependency-free **Python** and **TypeScript** REST clients.
 >
 > ```cypher
@@ -109,6 +115,10 @@ cargo build
 cargo test
 cargo clippy --all-targets
 cargo fmt --check
+
+# Durable RocksDB backend (slower first build; pulls librocksdb-sys):
+cargo test -p chronos-embedded --features rocks
+CHRONOS_DATA_DIR=./data cargo run -p chronos-server --features rocks
 ```
 
 ## License
