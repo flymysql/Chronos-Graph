@@ -20,8 +20,19 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
       - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test --all
       - name: Build (release)
         run: cargo build --release
+
+  rocks:
+    # The RocksDB backend builds a large C++ dependency; isolated so the main
+    # gate stays fast. Cached across runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build + test rocks backend
+        run: cargo test -p chronos-storage --features rocks

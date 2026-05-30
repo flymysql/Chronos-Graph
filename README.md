@@ -18,10 +18,19 @@ pushes these capabilities **down into the database engine itself**:
   context, not rows.
 - **Agent-native** — built-in MCP server for write-memory / search / multi-hop.
 
-> Status: **early scaffold (v0.0.1)**. This repository currently contains the compiling
-> workspace skeleton (crate graph + core trait boundaries). See
-> [docs/implementation.md](docs/implementation.md) for the engineering plan and
-> [docs/design.md](docs/design.md) for the architecture rationale.
+> Status: **M1 in progress (v0.0.1)**. Beyond the workspace skeleton, the
+> bitemporal core is now functional and tested:
+>
+> - `chronos-storage`: a complete in-memory **MVCC** `StorageEngine` (snapshot
+>   isolation, read-your-writes, atomic commit) plus a durable **RocksDB**
+>   backend behind the `rocks` feature (WAL + crash recovery).
+> - `chronos-embedded`: a transactional `FactStore` implementing the atomic
+>   **`UPSERT_FACT`** operator (contradiction detection + valid-time
+>   supersession, non-lossy) and **point-in-time `as_of`** queries over both
+>   timelines, verified with property-based tests.
+>
+> See [docs/implementation.md](docs/implementation.md) for the engineering plan
+> and [docs/design.md](docs/design.md) for the architecture rationale.
 
 ## Workspace layout
 

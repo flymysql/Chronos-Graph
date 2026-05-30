@@ -6,8 +6,14 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "Storage engine: bitemporal record codec, MVCC, transactions, and the interval index. RocksDB backend is planned behind the StorageEngine trait."
+description = "Storage engine: bitemporal record codec, MVCC, transactions, and the interval index. In-memory backend by default; RocksDB backend behind the `rocks` feature."
+
+[features]
+default = []
+# Enables the durable RocksDB-backed StorageEngine. Builds RocksDB from source
+# (heavy); compression libs are disabled to keep the native build lean.
+rocks = ["dep:rocksdb"]
 
 [dependencies]
 chronos-common.workspace = true
-# Planned: rust-rocksdb (LSM backend) behind the `rocks` feature.
+rocksdb = { version = "0.22", optional = true, default-features = false }
