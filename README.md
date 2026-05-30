@@ -90,6 +90,13 @@ pushes these capabilities **down into the database engine itself**:
 > See [docs/implementation.md](docs/implementation.md) for the engineering plan
 > and [docs/design.md](docs/design.md) for the architecture rationale.
 
+## Documentation
+
+SDK & API docs (REST, Python, TypeScript, MCP, embedded) are a static site in
+[`site/`](site/), published to GitHub Pages at
+`https://flymysql.github.io/Chronos-Graph/`. Preview locally with
+`cd site && python3 -m http.server 8000`.
+
 ## Workspace layout
 
 ```text

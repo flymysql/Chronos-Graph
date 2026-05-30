@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chronos-Graph · SDK & API Docs</title>
+  <meta name="description" content="SDK and API documentation for Chronos-Graph, a bitemporal-native graph database for RAG and AI-agent memory." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> Chronos-Graph</div>
+    <div class="tagline">Bitemporal-native graph DB for RAG &amp; agent memory</div>
+
+    <div class="nav-group">
+      <h4>Getting started</h4>
+      <a href="#overview">Overview</a>
+      <a href="#quickstart">Quick start</a>
+      <a href="#concepts">Core concepts</a>
+    </div>
+    <div class="nav-group">
+      <h4>Interfaces</h4>
+      <a href="#rest">REST API</a>
+      <a href="#python">Python SDK</a>
+      <a href="#typescript">TypeScript SDK</a>
+      <a href="#mcp">MCP server</a>
+      <a href="#embedded">Embedded (Rust)</a>
+    </div>
+    <div class="nav-group">
+      <h4>Reference</h4>
+      <a href="#query">Query language</a>
+      <a href="#tenancy">Multi-tenancy</a>
+      <a href="#capabilities">Capabilities</a>
+    </div>
+    <div class="nav-group">
+      <h4>Links</h4>
+      <a href="https://github.com/flymysql/Chronos-Graph" target="_blank" rel="noopener">GitHub repo ↗</a>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div class="hero" id="overview">
+      <h1>Chronos-Graph</h1>
+      <p class="lede">A bitemporal-native graph database purpose-built for RAG and AI-agent memory. Every fact tracks <em>valid time</em> and <em>transaction time</em>, contradictions are invalidated (not deleted), and retrieval returns LLM-ready, cited context.</p>
+      <div class="badges">
+        <span class="badge">v0.0.1</span>
+        <span class="badge">Rust</span>
+        <span class="badge">REST · MCP · Embedded</span>
+        <span class="badge">Apache-2.0</span>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>What this engine does without an LLM:</strong> there is no built-in embedding model, so the
+      <code>SIMILAR(...)</code> operator ranks facts with a real <strong>BM25</strong> index over their
+      verbalized text. Everything else — bitemporal storage, atomic upsert, point-in-time queries,
+      provenance/citations, communities, entity resolution, multi-tenancy and durability — is implemented and tested.
+    </div>
+
+    <!-- QUICK START -->
+    <section id="quickstart">
+      <h2>Quick start</h2>
+      <p>Build the workspace and run the REST service (defaults to <code>127.0.0.1:8080</code>).</p>
+      <div class="tabs" data-tabs>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="qs-mem">In-memory</button>
+          <button class="tab-btn" data-tab="qs-rocks">Durable (RocksDB)</button>
+        </div>
+        <div class="tab-panel active" id="qs-mem">
+<pre><code>cargo run -p chronos-server
+# chronos-server listening on 127.0.0.1:8080
+# override with: CHRONOS_ADDR=0.0.0.0:9000 cargo run -p chronos-server</code></pre>
+        </div>
+        <div class="tab-panel" id="qs-rocks">
+<pre><code># first build compiles librocksdb-sys (slow once, then cached)
+CHRONOS_DATA_DIR=./data cargo run -p chronos-server --features rocks</code></pre>
+        </div>
+      </div>
+
+      <p>Then write a fact and ask a question:</p>
+      <div class="tabs" data-tabs>
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="qs-curl">curl</button>
+          <button class="tab-btn" data-tab="qs-py">Python</button>
+          <button class="tab-btn" data-tab="qs-ts">TypeScript</button>
+        </div>
+        <div class="tab-panel active" id="qs-curl">
+<pre><code>curl -XPOST localhost:8080/v1/memory -H 'content-type: application/json' \
+  -d '{"subject":"Alice","predicate":"lives_in","object":"Beijing","valid_from":1000,"doc":10,"chunk":1}'
+
+curl -XPOST localhost:8080/v1/search -H 'content-type: application/json' \
+  -d '{"query":"MATCH (n) WHERE SIMILAR(n,\"Alice\") RETURN CONTEXT(cite = true)"}'</code></pre>
+        </div>
+        <div class="tab-panel" id="qs-py">
+<pre><code>from chronos_graph import ChronosClient
+
+c = ChronosClient("http://127.0.0.1:8080")
+c.add_memory("Alice", "lives_in", "Beijing", valid_from=1000, doc=10, chunk=1)
+print(c.search('MATCH (n) WHERE SIMILAR(n,"Alice") RETURN CONTEXT(cite = true)')["text"])</code></pre>
+        </div>
+        <div class="tab-panel" id="qs-ts">
+<pre><code>import { ChronosClient } from "./client";
+
+const c = new ChronosClient("http://127.0.0.1:8080");
+await c.addMemory({ subject:"Alice", predicate:"lives_in", object:"Beijing", validFrom:1000, doc:10, chunk:1 });
+const res = await c.search('MATCH (n) WHERE SIMILAR(n,"Alice") RETURN CONTEXT(cite = true)');
+console.log(res.text);</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONCEPTS -->
+    <section id="concepts">
+      <h2>Core concepts</h2>
+      <ul>
+        <li><strong>Fact</strong> — a <code>subject predicate object</code> edge carrying a bitemporal span and a provenance reference (<code>doc</code>, <code>chunk</code>).</li>
+        <li><strong>Valid time</strong> — when the fact was true in the real world (you supply <code>valid_from</code>, in epoch milliseconds).</li>
+        <li><strong>Transaction time</strong> — when the system learned it (assigned automatically on write).</li>
+        <li><strong>Invalidation</strong> — writing a contradicting fact under the <code>unique</code> policy closes the old fact's valid span instead of deleting it, so history is preserved and queryable.</li>
+        <li><strong>Citation</strong> — every retrieved line can be traced back to its source <code>doc</code>/<code>chunk</code>.</li>
+        <li><strong>Tenant</strong> — an isolation boundary; facts, retrieval, communities and resolution are all scoped to a tenant.</li>
+      </ul>
+    </section>
+
+    <!-- REST -->
+    <section id="rest">
+      <h2>REST API</h2>
+      <p>Base URL defaults to <code>http://127.0.0.1:8080</code>. All bodies are JSON. Add the header
+        <code>X-Tenant-Id: &lt;number&gt;</code> to scope a request to a tenant (omit for the default tenant <code>0</code>).</p>
+
+      <div class="endpoint"><span class="method get">GET</span><span class="path">/healthz</span></div>
+      <p class="muted">Liveness probe. Returns <code>200 ok</code>.</p>
+
+      <div class="endpoint"><span class="method post">POST</span><span class="path">/v1/memory</span></div>
+      <p>Ingest a fact (atomic <code>UPSERT_FACT</code>). Returns the new edge id.</p>
+      <table>
+        <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+        <tr><td><code>subject</code></td><td>string</td><td>entity name (interned)</td></tr>
+        <tr><td><code>predicate</code></td><td>string</td><td>relationship name</td></tr>
+        <tr><td><code>object</code></td><td>string</td><td>entity name (interned)</td></tr>
+        <tr><td><code>valid_from</code></td><td>integer</td><td>epoch milliseconds (real-world validity start)</td></tr>
+        <tr><td><code>doc</code></td><td>integer</td><td>provenance document id</td></tr>
+        <tr><td><code>chunk</code></td><td>integer</td><td>provenance chunk id</td></tr>
+        <tr><td><code>policy</code></td><td>string?</td><td><code>unique</code> (default, supersede contradictions) or <code>append</code></td></tr>
+      </table>
+<div class="code"><pre><code>// response
+{ "edge_id": 1 }</code></pre></div>
+
+      <div class="endpoint"><span class="method post">POST</span><span class="path">/v1/search</span></div>
+      <p>Run an extended-Cypher query and get cited, point-in-time context.</p>
+<div class="code"><pre><code>// request
+{ "query": "MATCH (n) WHERE SIMILAR(n,\"Alice\") AS OF VALID TIME 1500 RETURN CONTEXT(cite = true)" }
+
+// response
+{
+  "text": "- Alice lives_in Beijing",
+  "citations": [ { "doc": 10, "chunk": 1, "snippet": "Alice lives_in Beijing" } ]
+}</code></pre></div>
+
+      <div class="endpoint"><span class="method get">GET</span><span class="path">/v1/communities</span></div>
+      <p>Level-0 (connected-component) communities with templated, current-fact summaries — the "global" topic view.</p>
+<div class="code"><pre><code>// response
+{ "communities": [
+  { "id": 1, "members": ["Alice","Beijing"], "summary": "Community of 2 entities (Alice, Beijing). Current facts: Alice lives_in Beijing" }
+] }</code></pre></div>
+
+      <div class="endpoint"><span class="method post">POST</span><span class="path">/v1/resolve</span></div>
+      <p>Entity resolution: detect surface variants and merge them. Set <code>dry_run: true</code> to preview candidates without merging.</p>
+<div class="code"><pre><code>// request
+{ "threshold": 0.9, "dry_run": false }
+
+// response
+{
+  "merged": 1,
+  "candidates": [ { "keep": 1, "drop": 2, "keep_name": "OpenAI", "drop_name": "OpenAI Inc.", "score": 1.0 } ]
+}</code></pre></div>
+
+      <h3>Errors</h3>
+      <p>Malformed queries return <code>400</code>; unknown lookups return <code>404</code>; other engine errors return <code>500</code>. The body is <code>{ "error": "..." }</code>.</p>
+    </section>
+
+    <!-- PYTHON -->
+    <section id="python">
+      <h2>Python SDK</h2>
+      <p>Single file, standard-library only (<code>urllib</code>), no dependencies. Copy <code>sdks/python/chronos_graph.py</code> into your project.</p>
+      <div class="code"><pre><code>from chronos_graph import ChronosClient, ChronosError
+
+client = ChronosClient("http://127.0.0.1:8080")
+
+# Ingest (returns the new edge id)
+edge = client.add_memory(
+    "Alice", "lives_in", "Shanghai",
+    valid_from=2000, doc=20, chunk=1,
+    policy="unique",      # or "append"
+)
+
+# Search -> {"text": ..., "citations": [...]}
+result = client.search('MATCH (n) WHERE SIMILAR(n,"Alice lives") RETURN CONTEXT(cite = true)')
+print(result["text"])
+print(result["citations"])</code></pre></div>
+      <table>
+        <tr><th>Method</th><th>Signature</th></tr>
+        <tr><td><code>add_memory</code></td><td><code>(subject, predicate, object, valid_from, doc, chunk, policy=None) -&gt; int</code></td></tr>
+        <tr><td><code>search</code></td><td><code>(query: str) -&gt; {"text", "citations"}</code></td></tr>
+      </table>
+      <div class="note"><strong>Coverage:</strong> the SDK wraps <code>/v1/memory</code> and <code>/v1/search</code>. For
+        <code>/v1/communities</code>, <code>/v1/resolve</code> and the <code>X-Tenant-Id</code> header, call the REST API directly for now.</div>
+    </section>
+
+    <!-- TYPESCRIPT -->
+    <section id="typescript">
+      <h2>TypeScript SDK</h2>
+      <p>Uses the global <code>fetch</code> (Node 18+, Deno, browsers). No dependencies. Copy <code>sdks/typescript/client.ts</code>.</p>
+      <div class="code"><pre><code>import { ChronosClient, type SearchResult } from "./client";
+
+const client = new ChronosClient("http://127.0.0.1:8080");
+
+const edge: number = await client.addMemory({
+  subject: "Alice", predicate: "lives_in", object: "Shanghai",
+  validFrom: 2000, doc: 20, chunk: 1, policy: "unique",
+});
+
+const res: SearchResult = await client.search(
+  'MATCH (n) WHERE SIMILAR(n,"Alice lives") RETURN CONTEXT(cite = true)'
+);
+console.log(res.text, res.citations);</code></pre></div>
+      <table>
+        <tr><th>Method</th><th>Signature</th></tr>
+        <tr><td><code>addMemory</code></td><td><code>({ subject, predicate, object, validFrom, doc, chunk, policy? }) =&gt; Promise&lt;number&gt;</code></td></tr>
+        <tr><td><code>search</code></td><td><code>(query: string) =&gt; Promise&lt;SearchResult&gt;</code></td></tr>
+      </table>
+    </section>
+
+    <!-- MCP -->
+    <section id="mcp">
+      <h2>MCP server</h2>
+      <p>A built-in Model Context Protocol server (JSON-RPC 2.0 over stdio) exposes the engine as agent-callable tools, completing multi-hop retrieval server-side.</p>
+      <div class="code"><pre><code>cargo run -p chronos-mcp     # speaks JSON-RPC 2.0 on stdin/stdout</code></pre></div>
+      <p>Register it with an MCP-capable client:</p>
+      <div class="code"><pre><code>{
+  "mcpServers": {
+    "chronos": { "command": "/path/to/target/debug/chronos-mcp" }
+  }
+}</code></pre></div>
+      <table>
+        <tr><th>Tool</th><th>Purpose</th></tr>
+        <tr><td><code>add_memory</code></td><td>ingest a fact (subject/predicate/object, valid_from, doc, chunk)</td></tr>
+        <tr><td><code>search_memory</code></td><td>cited, point-in-time context for an extended-Cypher query</td></tr>
+        <tr><td><code>list_communities</code></td><td>level-0 community summaries (global view)</td></tr>
+        <tr><td><code>resolve_entities</code></td><td>merge surface-variant entities above a similarity threshold</td></tr>
+      </table>
+    </section>
+
+    <!-- EMBEDDED -->
+    <section id="embedded">
+      <h2>Embedded (Rust)</h2>
+      <p>Run the same kernel in-process for single-node or edge deployments.</p>
+      <div class="code"><pre><code>use chronos_embedded::{Chronos, MemoryRetriever};
+use chronos_common::config::EngineConfig;
+
+let chronos = Chronos::open(EngineConfig::default())?;   // durable with the `rocks` feature
+chronos.facts.ingest(
+    "Alice", "lives_in", "Beijing",
+    chronos_common::Timestamp::from_millis(1000),
+    chronos_common::DocId::new(10), chronos_common::ChunkId::new(1),
+    chronos_temporal::ConflictPolicy::UniqueSubjectPredicate,
+)?;
+
+let block = MemoryRetriever::new(&chronos.facts)
+    .answer("MATCH (n) WHERE SIMILAR(n,\"Alice\") RETURN CONTEXT(cite = true)")?;
+println!("{}", block.text);</code></pre></div>
+    </section>
+
+    <!-- QUERY -->
+    <section id="query">
+      <h2>Query language</h2>
+      <p>An OpenCypher subset extended with RAG/temporal operators.</p>
+      <table>
+        <tr><th>Clause</th><th>Meaning</th></tr>
+        <tr><td><code>MATCH (n)</code></td><td>bind nodes (entry point)</td></tr>
+        <tr><td><code>WHERE SIMILAR(n, "text")</code></td><td>BM25 relevance ranking over fact text</td></tr>
+        <tr><td><code>AS OF VALID TIME &lt;ms&gt;</code></td><td>point-in-time on the valid timeline</td></tr>
+        <tr><td><code>AS OF TRANSACTION TIME &lt;ms&gt;</code></td><td>point-in-time on the transaction timeline</td></tr>
+        <tr><td><code>TRAVERSE SEMANTIC(budget = N tokens)</code></td><td>token-budgeted expansion</td></tr>
+        <tr><td><code>RETURN CONTEXT(cite = true|false)</code></td><td>graph-to-text, optionally with citations</td></tr>
+      </table>
+      <div class="code"><pre><code>MATCH (n) WHERE SIMILAR(n, "Alice lives")
+AS OF VALID TIME 1500
+TRAVERSE SEMANTIC(budget = 256 tokens)
+RETURN CONTEXT(cite = true)</code></pre></div>
+    </section>
+
+    <!-- TENANCY -->
+    <section id="tenancy">
+      <h2>Multi-tenancy</h2>
+      <p>Every fact carries a <code>TenantId</code>. The tenant filter is pushed into the scan, so a tenant-scoped
+        request can never observe another tenant's facts, and contradiction detection never crosses the boundary.</p>
+      <div class="code"><pre><code>curl -XPOST localhost:8080/v1/memory \
+  -H 'content-type: application/json' -H 'X-Tenant-Id: 42' \
+  -d '{"subject":"Alice","predicate":"lives_in","object":"Tokyo","valid_from":1000,"doc":1,"chunk":1}'
+
+curl -XPOST localhost:8080/v1/search \
+  -H 'content-type: application/json' -H 'X-Tenant-Id: 42' \
+  -d '{"query":"MATCH (n) WHERE SIMILAR(n,\"Alice\") RETURN CONTEXT(cite = true)"}'</code></pre></div>
+      <p class="muted">Omitting <code>X-Tenant-Id</code> targets the default tenant (<code>0</code>). The same header works on <code>/v1/communities</code> and <code>/v1/resolve</code>.</p>
+    </section>
+
+    <!-- CAPABILITIES -->
+    <section id="capabilities">
+      <h2>Capabilities</h2>
+      <table>
+        <tr><th>Capability</th><th>Status</th></tr>
+        <tr><td>Bitemporal storage (valid + transaction time)</td><td class="ok">implemented</td></tr>
+        <tr><td>MVCC in-memory engine</td><td class="ok">implemented</td></tr>
+        <tr><td>Durable RocksDB engine + full recovery</td><td class="ok">implemented (<code>rocks</code>)</td></tr>
+        <tr><td>Atomic <code>UPSERT_FACT</code> + non-lossy invalidation</td><td class="ok">implemented</td></tr>
+        <tr><td>Point-in-time <code>AS OF</code></td><td class="ok">implemented</td></tr>
+        <tr><td>BM25 full-text (wired into <code>SIMILAR</code>)</td><td class="ok">implemented</td></tr>
+        <tr><td>Brute-force cosine vector index</td><td class="ok">implemented</td></tr>
+        <tr><td>Incremental communities</td><td class="ok">implemented</td></tr>
+        <tr><td>Entity resolution (detect + transactional merge)</td><td class="ok">implemented</td></tr>
+        <tr><td>Multi-tenancy / tenant push-down</td><td class="ok">implemented</td></tr>
+        <tr><td>REST · MCP · Python/TS SDKs</td><td class="ok">implemented</td></tr>
+        <tr><td>HNSW approximate vector index</td><td class="plan">planned</td></tr>
+        <tr><td>tantivy-backed full-text</td><td class="plan">planned</td></tr>
+        <tr><td>Hierarchical (Leiden) communities + LLM summaries</td><td class="plan">planned</td></tr>
+        <tr><td>Full historical MVCC on RocksDB</td><td class="plan">planned</td></tr>
+        <tr><td>gRPC service</td><td class="plan">planned</td></tr>
+      </table>
+    </section>
+
+    <footer>
+      Chronos-Graph · Apache-2.0 ·
+      <a href="https://github.com/flymysql/Chronos-Graph" target="_blank" rel="noopener">github.com/flymysql/Chronos-Graph</a>
+    </footer>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
