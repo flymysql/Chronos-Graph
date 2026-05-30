@@ -1,5 +1,11 @@
 # Chronos-Graph
 
+[![Release](https://img.shields.io/github/v/release/flymysql/Chronos-Graph?sort=semver)](https://github.com/flymysql/Chronos-Graph/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/flymysql/Chronos-Graph/ci.yml?branch=main&label=CI)](https://github.com/flymysql/Chronos-Graph/actions/workflows/ci.yml)
+[![Container](https://img.shields.io/badge/ghcr.io-chronos--graph-2496ed?logo=docker&logoColor=white)](https://github.com/flymysql/Chronos-Graph/pkgs/container/chronos-graph)
+[![Docs](https://img.shields.io/badge/docs-EN%20%2F%20%E4%B8%AD%E6%96%87-8a63d2)](https://flymysql.github.io/Chronos-Graph/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
+
 A **bitemporal-native graph database** purpose-built for RAG and AI-agent memory.
 
 **SDK & API documentation (bilingual EN / 中文): https://flymysql.github.io/Chronos-Graph/**
