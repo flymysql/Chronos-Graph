@@ -1,3 +1,30 @@
+// Language toggle (EN / 中文), persisted in localStorage
+(function () {
+  const KEY = "chronos-lang";
+  const toggle = document.getElementById("langToggle");
+  if (!toggle) return;
+  const buttons = toggle.querySelectorAll("button");
+
+  function apply(lang) {
+    document.body.classList.toggle("lang-en", lang === "en");
+    document.body.classList.toggle("lang-zh", lang === "zh");
+    document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+    buttons.forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
+  }
+
+  const saved = localStorage.getItem(KEY);
+  const prefersZh = (navigator.language || "").toLowerCase().startsWith("zh");
+  apply(saved || (prefersZh ? "zh" : "en"));
+
+  buttons.forEach((b) =>
+    b.addEventListener("click", () => {
+      const lang = b.dataset.lang;
+      localStorage.setItem(KEY, lang);
+      apply(lang);
+    })
+  );
+})();
+
 // Tabbed code blocks
 document.querySelectorAll("[data-tabs]").forEach((group) => {
   const buttons = group.querySelectorAll(".tab-btn");
