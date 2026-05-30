@@ -175,11 +175,11 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chronos-common"
-version = "0.0.1"
+version = "0.1.0"
 
 [[package]]
 name = "chronos-community"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
  "chronos-graph-model",
@@ -187,7 +187,7 @@ dependencies = [
 
 [[package]]
 name = "chronos-embedded"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
  "chronos-community",
@@ -203,21 +203,21 @@ dependencies = [
 
 [[package]]
 name = "chronos-graph-model"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
 ]
 
 [[package]]
 name = "chronos-index"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
 ]
 
 [[package]]
 name = "chronos-mcp"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
  "chronos-embedded",
@@ -227,14 +227,14 @@ dependencies = [
 
 [[package]]
 name = "chronos-provenance"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
 ]
 
 [[package]]
 name = "chronos-query"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
  "chronos-graph-model",
@@ -246,7 +246,7 @@ dependencies = [
 
 [[package]]
 name = "chronos-resolution"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
  "chronos-graph-model",
@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "chronos-server"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "axum",
  "chronos-common",
@@ -270,7 +270,7 @@ dependencies = [
 
 [[package]]
 name = "chronos-storage"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
  "rocksdb",
@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "chronos-temporal"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "chronos-common",
 ]

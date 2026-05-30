@@ -21,7 +21,7 @@ pushes these capabilities **down into the database engine itself**:
   context, not rows.
 - **Agent-native** — built-in MCP server for write-memory / search / multi-hop.
 
-> Status: **M1–M6 functional (v0.0.1)**. Beyond the workspace skeleton, the
+> Status: **M1–M6 functional (v0.1.0)**. Beyond the workspace skeleton, the
 > bitemporal core, query layer, service layer, incremental communities, entity
 > resolution, multi-tenancy, real BM25/vector indexes and a durable RocksDB
 > backend are functional and tested (60+ tests across the workspace):
@@ -100,6 +100,42 @@ diagrams** (system overview, retrieval pipeline, crate/module map) are a
 bilingual (EN / 中文) static site in [`site/`](site/), published to GitHub Pages
 at **<https://flymysql.github.io/Chronos-Graph/>**. Preview locally with
 `cd site && python3 -m http.server 8000`.
+
+## Install & run
+
+Three ways to run it, from zero-build to from-source.
+
+**1. Prebuilt binaries (no toolchain needed).** Download the tarball for your
+platform from the [latest release](https://github.com/flymysql/Chronos-Graph/releases).
+Each archive contains `chronos-server` (in-memory), `chronos-server-rocks`
+(durable RocksDB) and `chronos-mcp`:
+
+```bash
+tar xzf chronos-graph-v0.1.0-x86_64-unknown-linux-gnu.tar.gz
+cd chronos-graph-v0.1.0-*
+
+./chronos-server                                   # REST, in-memory, 127.0.0.1:8080
+CHRONOS_ADDR=0.0.0.0:8080 CHRONOS_DATA_DIR=./data ./chronos-server-rocks   # durable
+```
+
+**2. Docker** (durable by default; data lives on the `/data` volume):
+
+```bash
+docker run -p 8080:8080 -v chronos-data:/data ghcr.io/flymysql/chronos-graph:latest
+# in-memory only: docker run -p 8080:8080 -e CHRONOS_DATA_DIR= ghcr.io/flymysql/chronos-graph:latest
+```
+
+**3. From source** (requires Rust ≥ 1.85; compiles then runs):
+
+```bash
+cargo run -p chronos-server                        # REST on 127.0.0.1:8080
+cargo run -p chronos-mcp                            # MCP server on stdio
+CHRONOS_DATA_DIR=./data cargo run -p chronos-server --features rocks   # durable
+```
+
+Configuration: `CHRONOS_ADDR` (bind address, default `127.0.0.1:8080`) and
+`CHRONOS_DATA_DIR` (enables the durable RocksDB store when the `rocks` feature
+is compiled in; unset = in-memory).
 
 ## Workspace layout
 
